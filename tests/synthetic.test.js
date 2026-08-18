@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { generateCohort } from "../js/synthetic.js";
 import { performance, directionalFairness, groupCounts, careRates } from "../js/metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows } from "../js/adapter.js";
+import { buildAuditReport } from "../js/report.js";
 
 test("synthetic generation is deterministic and schema-valid", () => {
   const first = generateCohort({ size: 200, seed: 42, scenario: "balanced" });
@@ -89,4 +90,21 @@ test("fertility pathway preserves eligibility and process ordering", () => {
   assert.ok(rows.every((row) => !row.fertility_preservation_completed || row.fertility_preservation_discussed));
   assert.ok(rows.every((row) => !row.fertility_preservation_discussed || row.fertility_preservation_eligible));
   assert.ok(rows.every((row) => !row.fertility_preservation_eligible || row.fertility_risk_assessment_eligible));
+});
+
+test("aggregate audit report excludes participant-level records", () => {
+  const rows = generateCohort({ size: 2000, seed: 2026, scenario: "access_gap" });
+  const report = buildAuditReport(rows, {
+    source: "Synthetic",
+    referenceGroup: "White, non-Hispanic",
+    comparisonGroup: "Black, non-Hispanic",
+    generatedAt: "2026-08-18T00:00:00.000Z"
+  });
+  const serialized = JSON.stringify(report);
+  assert.equal(report.report.disclosureControl.participantLevelRowsIncluded, false);
+  assert.equal(report.dataset.participants, rows.length);
+  assert.equal(report.configuration.riskThreshold, 0.2);
+  assert.ok(report.model.directionalFairness);
+  assert.equal(serialized.includes("participant_id"), false);
+  assert.equal(serialized.includes(rows[0].participant_id), false);
 });

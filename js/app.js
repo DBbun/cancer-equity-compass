@@ -9,6 +9,7 @@ import {
   groupPerformance
 } from "./metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows, REQUIRED_FIELDS } from "./adapter.js";
+import { buildAuditReport } from "./report.js";
 
 let cohort = [];
 let source = "";
@@ -147,6 +148,19 @@ function renderIntegration() {
     ? `<p class="${result.valid ? "ok" : "error"}">${result.valid ? "Canonical validation passed." : "Canonical validation failed."}</p>${[...result.errors, ...result.warnings].map((message) => `<p>• ${escapeHtml(message)}</p>`).join("")}<p>${REQUIRED_FIELDS.length} required fields checked across ${cohort.length.toLocaleString()} records.</p>`
     : "<p>No cohort loaded.</p>";
   $("#download-ccdi-bundle").disabled = !cohort.length;
+  $("#download-audit-report").disabled = !cohort.length;
+}
+
+function currentAuditReport() {
+  return buildAuditReport(cohort, {
+    source,
+    readinessField: currentGroupField("readiness"),
+    careField: currentGroupField("care"),
+    fairnessField: currentGroupField("fairness"),
+    referenceGroup: $("#reference-group").value,
+    comparisonGroup: $("#comparison-group").value,
+    threshold: Number($("#threshold").value)
+  });
 }
 
 function table(headers, rows, className = () => "") {
@@ -182,6 +196,7 @@ $("#generate").addEventListener("click", createSynthetic);
 $("#download-csv").addEventListener("click", () => download("cancer-equity-compass-synthetic.csv", toCsv(cohort), "text/csv"));
 $("#download-json").addEventListener("click", () => download("cancer-equity-compass-synthetic.json", JSON.stringify(cohort, null, 2), "application/json"));
 $("#download-ccdi-bundle").addEventListener("click", () => download("cancer-equity-compass-ccdi-demonstration-bundle.json", JSON.stringify(toCcdiDemonstrationBundle(cohort), null, 2), "application/json"));
+$("#download-audit-report").addEventListener("click", () => download("cancer-equity-compass-aggregate-audit-report.json", JSON.stringify(currentAuditReport(), null, 2), "application/json"));
 $("#file-upload").addEventListener("change", async (event) => {
   const file = event.target.files[0];
   if (!file) return;

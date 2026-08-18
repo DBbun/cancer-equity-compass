@@ -12,6 +12,12 @@ This repository is an early working prototype for **Phase I, Track 1, Milestone 
 4. **Model Fairness Auditor** separates ranking, calibration, and threshold behavior across populations.
 5. **CCDI Integration Layer** validates a documented canonical CSV/JSON contract and keeps all computation in the browser.
 
+The integration layer can also export a disclosure-conscious aggregate audit
+report containing the active configuration, readiness measures, care rates,
+model performance, and directional fairness results. Participant-level rows are
+not included in this report, and small cells are suppressed using the documented
+minimum reporting threshold.
+
 ## Run locally
 
 No build step is required.
