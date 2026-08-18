@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Contract | Sub-population Fairness &amp; Readiness Auditor for CCDI</title>
+  <style>
+    :root{--deep:#073b33;--teal:#267c70;--coral:#f16845;--paper:#f4f0e6;--white:#fff;--ink:#102f2a;--muted:#587069;--line:#c8d6d2;--gold:#e3ae32}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Arial,sans-serif;line-height:1.6}header{background:linear-gradient(135deg,#073b33,#10594d);color:#fff;padding:48px max(5vw,28px)}header div,main{max-width:1180px;margin:auto}.eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:.75rem;font-weight:800;color:#82cec2}h1{font-family:Georgia,serif;font-size:clamp(2.3rem,5vw,4.7rem);line-height:1;margin:.25em 0}header p{font-size:1.12rem;color:#dceae7;max-width:850px}.back{display:inline-block;color:#fff;border:1px solid #8bc5bb;padding:10px 15px;text-decoration:none;font-weight:800;margin-top:14px}main{padding:48px max(4vw,24px) 80px}.notice{background:#fff7dc;border-left:4px solid var(--gold);padding:16px 19px;margin-bottom:28px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:var(--white);border:1px solid var(--line);padding:22px}.card span{display:block;color:var(--teal);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850}.card b{display:block;font-size:1.1rem;margin:7px 0}.card p{color:var(--muted);margin:0}section{margin-top:38px}h2{font-size:1.8rem;margin-bottom:10px}h3{margin-bottom:6px}table{width:100%;border-collapse:collapse;background:#fff;font-size:.9rem}th,td{padding:11px 10px;border-bottom:1px solid #dbe4e1;text-align:left;vertical-align:top}th{background:#eaf2ef;color:var(--deep)}code{background:#eaf2ef;padding:2px 5px;border-radius:2px}.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}.steps{counter-reset:item;list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.steps li{counter-increment:item;background:#fff;border-top:3px solid var(--teal);padding:18px}.steps li:before{content:"0" counter(item);display:block;color:var(--coral);font-weight:900;margin-bottom:8px}a{color:var(--teal);font-weight:750}@media(max-width:850px){.grid,.steps{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}}@media(max-width:560px){.grid,.steps{grid-template-columns:1fr}table{font-size:.78rem}th,td{padding:8px 5px}}
+  </style>
+</head>
+<body>
+  <header><div><div class="eyebrow">Technical documentation</div><h1>Canonical data contract</h1><p>The stable intermediate structure used by the Sub-population Fairness &amp; Readiness Auditor for CCDI to validate synthetic or user-supplied cohorts before readiness, care-gap, and model-fairness analysis.</p><a class="back" href="../index.html">← Return to the Auditor</a></div></header>
+  <main>
+    <div class="notice"><b>Demonstration boundary.</b> This contract is informed by public CCDI descriptions but is not an official CCDI submission template. Mapping to a selected CCDI resource requires version confirmation and review with NCI/CCDI.</div>
+
+    <div class="grid">
+      <article class="card"><span>Input</span><b>One row per participant</b><p>Canonical CSV or JSON with 22 required fields for the current demonstration workflow.</p></article>
+      <article class="card"><span>Validation</span><b>Structure before analysis</b><p>Required columns, unique identifiers, value ranges, binary indicators, and accepted categories.</p></article>
+      <article class="card"><span>Privacy</span><b>Browser-local processing</b><p>Uploaded records remain in the browser. The public demonstration should never receive controlled-access data.</p></article>
+    </div>
+
+    <section><h2>How the contract is used</h2><ol class="steps"><li><b>Ingest</b><br>Read canonical CSV/JSON and preserve stable participant identifiers.</li><li><b>Validate</b><br>Stop or flag analyses when required structure, categories, or values are invalid.</li><li><b>Audit</b><br>Apply consistent population, eligibility, outcome, prediction, and missingness definitions.</li><li><b>Export</b><br>Create synthetic node bundles and disclosure-conscious aggregate audit reports.</li><li><b>Map</b><br>Crosswalk canonical fields to a selected CCDI model, terminology set, and version.</li><li><b>Test</b><br>Use synthetic fixtures and automated checks to verify future adapter behavior.</li></ol></section>
+
+    <section><h2>Core fields</h2><table><thead><tr><th>Domain</th><th>Representative fields</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td>Identity and context</td><td><code>participant_id</code>, <code>site</code></td><td>Uniqueness, source stratification, and future relational mapping.</td></tr>
+      <tr><td>Demographics</td><td><code>age</code>, <code>sex</code>, <code>race_ethnicity</code></td><td>Representation, intersectional subgroup, and fairness analysis.</td></tr>
+      <tr><td>Cancer characteristics</td><td><code>cancer_type</code>, <code>risk_group</code></td><td>Disease-aware stratification and eligibility logic.</td></tr>
+      <tr><td>Care processes</td><td>Molecular testing, treatment, adherence, follow-up, psychosocial and survivorship indicators</td><td>Eligibility-conditioned completion rates and care cascades.</td></tr>
+      <tr><td>Model evaluation</td><td><code>outcome_2y</code>, <code>predicted_risk</code>, time-to-event fields</td><td>Discrimination, calibration, threshold, and error-rate auditing.</td></tr>
+      <tr><td>Documentation quality</td><td>Explicit missing values across selected care and follow-up fields</td><td>Population-by-field missingness and data-readiness assessment.</td></tr>
+    </tbody></table></section>
+
+    <section class="two"><article class="card"><h3>Missing values</h3><p>Blank CSV cells and JSON <code>null</code> values are treated as missing where permitted. Missing is kept distinct from “no,” “not eligible,” and “care not completed.” Analyses report relevant denominators and do not automatically interpret undocumented care as care not received.</p></article><article class="card"><h3>Accepted values</h3><p>Binary indicators use <code>0</code> and <code>1</code>. Predicted risk must fall between 0 and 1. Age and follow-up fields must remain within documented ranges. Categorical fields use the enumerations in the machine-readable schema.</p></article></section>
+
+    <section><h2>Files and implementation resources</h2><ul><li><a href="../data/canonical-schema.json">Machine-readable JSON Schema</a> — authoritative field types, requirements, and enumerations.</li><li><a href="data-contract.md">Markdown source documentation</a> — developer-oriented source retained in the repository.</li><li><a href="../index.html#workspace">Working browser demonstration</a> — generate or upload a cohort and review validation results.</li><li><a href="https://github.com/DBbun/cancer-equity-compass">Source repository</a> — adapter, tests, schema, model card, and synthetic-data specification.</li></ul></section>
+  </main>
+</body>
+</html>
