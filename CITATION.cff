@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If this software supports your work, please cite it using this metadata."
+title: "Childhood and AYA Cancer Equity Compass"
+type: software
+version: 0.1.0
+date-released: 2026-08-17
+authors:
+  - family-names: Kartoun
+    given-names: Uri
+    affiliation: DBbun LLC
+license: Apache-2.0
+repository-code: "https://github.com/DBbun/cancer-equity-compass"
+abstract: >-
+  A privacy-first toolkit for synthetic cohort generation, data-readiness
+  assessment, care-gap analysis, model-fairness auditing, and adaptation of
+  childhood and adolescent and young adult cancer data to a canonical contract.
+keywords:
+  - childhood cancer
+  - adolescent and young adult cancer
+  - health equity
+  - model fairness
+  - synthetic data
+

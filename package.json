@@ -1,0 +1,12 @@
+{
+  "name": "childhood-aya-cancer-equity-compass",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-first synthetic-data toolkit for auditing childhood and AYA cancer data, care gaps, and prediction models.",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server 8000"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,92 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { generateCohort } from "../js/synthetic.js";
+import { performance, directionalFairness, groupCounts, careRates } from "../js/metrics.js";
+import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows } from "../js/adapter.js";
+
+test("synthetic generation is deterministic and schema-valid", () => {
+  const first = generateCohort({ size: 200, seed: 42, scenario: "balanced" });
+  const second = generateCohort({ size: 200, seed: 42, scenario: "balanced" });
+  assert.deepEqual(first, second);
+  assert.equal(validateRows(first).valid, true);
+  assert.ok(first.every((row) => row.recommendations_completed <= row.recommendations_recalled));
+  assert.ok(first.every((row) => row.recommendations_recalled <= row.recommendations_given));
+  assert.ok(first.every((row) => row.transition_readiness >= 0 && row.transition_readiness <= 1));
+});
+
+test("performance metrics stay within expected bounds", () => {
+  const rows = generateCohort({ size: 2000, seed: 7, scenario: "miscalibration" });
+  const metrics = performance(rows, 0.2);
+  assert.ok(metrics.auc >= 0 && metrics.auc <= 1);
+  assert.ok(metrics.brier >= 0 && metrics.brier <= 1);
+  assert.ok(metrics.sensitivity >= 0 && metrics.sensitivity <= 1);
+});
+
+test("miscalibration scenario shifts female calibration ratio upward", () => {
+  const rows = generateCohort({ size: 12000, seed: 2026, scenario: "miscalibration" });
+  const female = rows.filter((row) => row.sex === "Female");
+  const male = rows.filter((row) => row.sex === "Male");
+  const audit = directionalFairness(male, female, 0.2);
+  assert.ok(audit.calibrationRatioDifference > 0.1);
+});
+
+test("access-gap scenario lowers testing in selected populations", () => {
+  const rows = generateCohort({ size: 15000, seed: 99, scenario: "access_gap" });
+  const rates = careRates(rows, "race_ethnicity");
+  const testRate = (group) => rates.find((row) => row.group === group && row.measure === "Molecular testing").rate;
+  assert.ok(testRate("Black, non-Hispanic") < testRate("White, non-Hispanic"));
+  assert.ok(groupCounts(rows, "race_ethnicity").length >= 5);
+});
+
+test("CSV round-trip preserves required values", () => {
+  const rows = generateCohort({ size: 10, seed: 8, scenario: "balanced" });
+  const parsed = parseCsv(toCsv(rows));
+  assert.equal(parsed.length, rows.length);
+  assert.equal(parsed[0].participant_id, rows[0].participant_id);
+  assert.equal(parsed[0].outcome_2y, rows[0].outcome_2y);
+  assert.equal(validateRows(parsed).valid, true);
+});
+
+test("AYA survivorship scenario lowers indicated continuity measures", () => {
+  const rows = generateCohort({ size: 20000, seed: 314, scenario: "survivorship_gap" });
+  const rates = careRates(rows, "age_group", 30);
+  const rate = (group, measure) => rates.find((row) => row.group === group && row.measure === measure).rate;
+  assert.ok(rate("20-29", "Psychosocial screening") < rate("5-9", "Psychosocial screening"));
+  assert.ok(rate("30-39", "Survivorship care plan") < rate("5-9", "Survivorship care plan"));
+});
+
+test("site-variation scenario creates a detectable readiness signal", () => {
+  const rows = generateCohort({ size: 20000, seed: 2718, scenario: "site_variation" });
+  const rates = careRates(rows, "site", 30);
+  const testRate = (site) => rates.find((row) => row.group === site && row.measure === "Molecular testing").rate;
+  assert.ok(testRate("Synthetic Site E") < testRate("Synthetic Site A"));
+  assert.ok(rows.some((row) => row.site === "Synthetic Site E" && row.followup_complete == null));
+});
+
+test("disease-specific fields respect neuroblastoma and Wilms eligibility", () => {
+  const rows = generateCohort({ size: 10000, seed: 81, scenario: "balanced" });
+  const neuroblastoma = rows.filter((row) => row.cancer_type === "Neuroblastoma");
+  const wilms = rows.filter((row) => row.cancer_type === "Renal tumor");
+  assert.ok(neuroblastoma.every((row) => ["L1", "L2", "M", "MS"].includes(row.disease_stage)));
+  assert.ok(neuroblastoma.every((row) => [0, 1].includes(row.mycn_amplified)));
+  assert.ok(wilms.every((row) => ["I", "II", "III", "IV", "V"].includes(row.disease_stage)));
+  assert.ok(wilms.every((row) => [0, 1].includes(row.wilms_1q_gain)));
+});
+
+test("CCDI demonstration adapter preserves node relationships", () => {
+  const rows = generateCohort({ size: 50, seed: 123, scenario: "balanced" });
+  const bundle = toCcdiDemonstrationBundle(rows);
+  assert.equal(bundle.participant.length, 50);
+  assert.equal(bundle.diagnosis.length, 50);
+  assert.equal(bundle.treatment.length, 50);
+  assert.equal(bundle.survival.length, 50);
+  assert.equal(bundle.diagnosis[0].participant_id, bundle.participant[0].participant_id);
+  assert.match(bundle.metadata.status, /Not an official CCDI/);
+});
+
+test("fertility pathway preserves eligibility and process ordering", () => {
+  const rows = generateCohort({ size: 10000, seed: 808, scenario: "survivorship_gap" });
+  assert.ok(rows.every((row) => !row.fertility_preservation_completed || row.fertility_preservation_discussed));
+  assert.ok(rows.every((row) => !row.fertility_preservation_discussed || row.fertility_preservation_eligible));
+  assert.ok(rows.every((row) => !row.fertility_preservation_eligible || row.fertility_risk_assessment_eligible));
+});

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Synthetic-data toolkit for auditing childhood and AYA cancer data, care gaps, and prediction models.">
+  <title>Childhood and AYA Cancer Equity Compass</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="eyebrow">DBbun · Privacy-first research prototype</div>
+    <div class="hero-grid">
+      <div>
+        <h1>Childhood and AYA<br><span>Cancer Equity Compass</span></h1>
+        <p class="lede">Find where data, care pathways, and prediction models may fail patient populations—before they influence research or care.</p>
+        <div class="hero-actions">
+          <button class="primary" data-scroll="workspace">Open the working prototype</button>
+          <a class="secondary" href="docs/data-contract.md">Review the data contract</a>
+        </div>
+      </div>
+      <div class="compass-card" aria-label="Five Compass modules">
+        <div class="radar" aria-hidden="true"><div class="needle"></div><div class="hub"></div></div>
+        <ol>
+          <li><b>Generate</b><span>Known synthetic ground truth</span></li>
+          <li><b>Inspect</b><span>Readiness and missingness</span></li>
+          <li><b>Compare</b><span>Care conditional on need</span></li>
+          <li><b>Audit</b><span>Ranking, calibration, thresholds</span></li>
+          <li><b>Integrate</b><span>Versioned CSV/JSON contract</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="safety-banner"><b>Simulated patients only.</b> The prototype contains no CCDI participant data and is not a clinical decision tool.</div>
+  </header>
+
+  <main id="workspace">
+    <section class="workspace-header">
+      <div>
+        <div class="eyebrow">Working product</div>
+        <h2>One local workflow. Five linked audits.</h2>
+      </div>
+      <div class="status" id="dataset-status">No cohort loaded</div>
+    </section>
+
+    <section class="control-panel" aria-labelledby="generator-title">
+      <div class="control-heading">
+        <div><span class="module-number">01</span><h3 id="generator-title">Synthetic Cohort Generator</h3></div>
+        <p id="scenario-description"></p>
+      </div>
+      <div class="controls">
+        <label>Scenario<select id="scenario"></select></label>
+        <label>Cohort size<select id="cohort-size"><option>2500</option><option selected>10000</option><option>25000</option><option>50000</option></select></label>
+        <label>Seed<input id="seed" type="number" value="2026" min="1" step="1"></label>
+        <button class="primary" id="generate">Generate cohort</button>
+      </div>
+      <div class="upload-row">
+        <label class="file-button">Upload canonical CSV<input id="file-upload" type="file" accept=".csv,text/csv"></label>
+        <button class="secondary" id="download-csv" disabled>Download synthetic CSV</button>
+        <button class="secondary" id="download-json" disabled>Download synthetic JSON</button>
+        <span>All computation remains in this browser tab.</span>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Compass modules">
+      <button class="tab active" data-tab="readiness">02 Data readiness</button>
+      <button class="tab" data-tab="care">03 Care gaps</button>
+      <button class="tab" data-tab="fairness">04 Model fairness</button>
+      <button class="tab" data-tab="integration">05 CCDI integration</button>
+    </nav>
+
+    <section class="tab-panel active" id="readiness" aria-labelledby="readiness-title">
+      <div class="panel-title"><div><div class="eyebrow">Data Readiness Auditor</div><h2 id="readiness-title">Is the cohort fit for subgroup analysis?</h2></div><label>Population<select class="group-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="site">Site</option></select></label></div>
+      <div class="kpi-grid" id="readiness-kpis"></div>
+      <div class="two-column"><article class="card"><h3>Representation</h3><div id="representation-chart"></div></article><article class="card"><h3>Missingness by population</h3><div id="missingness-table"></div></article></div>
+    </section>
+
+    <section class="tab-panel" id="care" aria-labelledby="care-title">
+      <div class="panel-title"><div><div class="eyebrow">Care-Gap Analyzer</div><h2 id="care-title">Who receives indicated testing, treatment, and follow-up?</h2></div><label>Population<select class="group-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="site">Site</option></select></label></div>
+      <p class="interpretation">Rates use clinically relevant eligibility denominators. Differences are review signals—not causal estimates or proof of unequal care.</p>
+      <article class="card"><div id="care-table"></div></article>
+    </section>
+
+    <section class="tab-panel" id="fairness" aria-labelledby="fairness-title">
+      <div class="panel-title"><div><div class="eyebrow">Model Fairness Auditor</div><h2 id="fairness-title">Separate ranking, calibration, and threshold behavior.</h2></div></div>
+      <div class="controls fairness-controls">
+        <label>Population<select id="fairness-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="site">Site</option></select></label>
+        <label>Reference<select id="reference-group"></select></label>
+        <label>Comparison<select id="comparison-group"></select></label>
+        <label>Risk threshold <output id="threshold-output">20%</output><input id="threshold" type="range" min="0.05" max="0.60" value="0.20" step="0.01"></label>
+      </div>
+      <div class="kpi-grid" id="performance-kpis"></div>
+      <article class="card"><h3>Directional fairness measures</h3><p class="formula">Comparison population minus reference population. Zero means no measured difference.</p><div class="metric-grid" id="fairness-metrics"></div></article>
+      <article class="card"><h3>Population performance table</h3><div id="performance-table"></div></article>
+    </section>
+
+    <section class="tab-panel" id="integration" aria-labelledby="integration-title">
+      <div class="panel-title"><div><div class="eyebrow">CCDI Integration Layer</div><h2 id="integration-title">A documented adapter boundary—not an integration claim.</h2></div></div>
+      <div class="two-column">
+        <article class="card"><h3>Current canonical contract</h3><div id="validation-results"></div><p>The prototype validates required columns, ranges, binary outcomes, and identifier uniqueness. It accepts CSV and exports CSV/JSON.</p><p><button id="download-ccdi-bundle" class="secondary">Download demonstration node bundle</button></p><a href="data/canonical-schema.json">Machine-readable JSON Schema</a></article>
+        <article class="card"><h3>Milestone adaptation path</h3><ol class="steps"><li>Confirm CCDI target resource and versioned model.</li><li>Map controlled terminology and provenance.</li><li>Add multi-table and longitudinal relationships.</li><li>Package validation rules and example manifests.</li><li>Test with CCDI collaborators and approved data.</li></ol></article>
+      </div>
+      <div class="integration-note"><b>Integration status:</b> DBbun demonstration schema informed by public CCDI descriptions. Not yet reviewed, endorsed, or integrated by NCI/CCDI.</div>
+    </section>
+  </main>
+
+  <footer><div><b>Childhood and AYA Cancer Equity Compass</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
