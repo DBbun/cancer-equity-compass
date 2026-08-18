@@ -21,9 +21,25 @@ not included in this report, and small cells are suppressed using the documented
 minimum reporting threshold.
 
 The model-assurance view includes population-overlaid predicted-risk
-histograms, an interactive decision-threshold marker, and subgroup calibration
-plots against ideal calibration. Calibration bands with fewer than 30 records
-are omitted from the visual display.
+histograms, subgroup calibration plots, age-stratified outcome/prediction/flag
+rates, and fairness gaps across a range of decision thresholds. Calibration
+bands with fewer than 30 records are omitted from the visual display. Data
+readiness uses a population-by-field missingness heatmap, while care processes
+are presented as completion, reference-gap, and pathway-cascade charts.
+
+## Active risk score and threshold
+
+The current executable score is a **synthetic two-year adverse-outcome
+probability**. It was built to exercise the audit software and is not a
+published or clinically validated cancer score. A threshold converts that
+continuous probability into a binary model-positive classification. For
+example, at 20%, records with predicted risk at or above 0.20 are flagged.
+The 20% default is exploratory and is not a treatment recommendation.
+
+A clinically usable threshold must be tied to a named model, eligible
+population, outcome, time horizon, intended intervention, and supporting
+publication or guideline. The UI therefore shows how fairness measures change
+across thresholds instead of implying that one cutoff applies across cancers.
 
 ## Run locally
 
@@ -94,6 +110,25 @@ eligibility-conditioned care-pathway, survivorship, and CCDI adaptation
 modules. The current synthetic risk model is not a cancer-specific clinical
 model and should not be represented as validation of the cardiovascular
 models or as clinical evidence in cancer.
+
+Cancer-specific evidence reviewed for the data model and planned adapters
+includes:
+
+- Chow EJ et al. Prediction of ischemic heart disease and stroke in survivors
+  of childhood cancer. *Journal of Clinical Oncology*. 2018.
+- Clark RA et al. Predicting acute ovarian failure in female childhood cancer
+  survivors. *Lancet Oncology*. 2020.
+- Moskowitz CS et al. Development and validation of a breast cancer risk
+  prediction model for childhood cancer survivors treated with chest radiation.
+  *Journal of Clinical Oncology*. 2021. DOI: 10.1200/JCO.20.02244.
+- van den Heuvel-Eibrink MM et al. Prognostic factors and risk stratification
+  for Wilms tumor. 2021.
+- Monclair T et al. The International Neuroblastoma Risk Group staging system.
+  2009.
+
+The evidence-to-variable matrix in
+[`docs/literature-topic-map.md`](docs/literature-topic-map.md) records source
+populations, variables, intended Compass use, and applicability guardrails.
 
 ## License
 

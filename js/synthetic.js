@@ -168,6 +168,7 @@ export function generateCohort({ size = 10000, seed = 2026, scenario = "access_g
       participant_id: `SYN-${String(index + 1).padStart(6, "0")}`,
       age_at_diagnosis: age,
       age_group: ageGroup(age),
+      age_sex: `${ageGroup(age)} · ${sex}`,
       sex,
       race_ethnicity: race,
       cancer_type: cancer,

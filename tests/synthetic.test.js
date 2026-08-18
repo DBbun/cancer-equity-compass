@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { generateCohort } from "../js/synthetic.js";
-import { performance, directionalFairness, groupCounts, careRates, riskHistogram, calibrationBins } from "../js/metrics.js";
+import { performance, directionalFairness, groupCounts, careRates, riskHistogram, calibrationBins, wilsonInterval } from "../js/metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows } from "../js/adapter.js";
 import { buildAuditReport } from "../js/report.js";
 
@@ -13,6 +13,14 @@ test("synthetic generation is deterministic and schema-valid", () => {
   assert.ok(first.every((row) => row.recommendations_completed <= row.recommendations_recalled));
   assert.ok(first.every((row) => row.recommendations_recalled <= row.recommendations_given));
   assert.ok(first.every((row) => row.transition_readiness >= 0 && row.transition_readiness <= 1));
+  assert.ok(first.every((row) => row.age_sex === `${row.age_group} · ${row.sex}`));
+});
+
+test("care-rate confidence intervals contain the observed proportion", () => {
+  const [lower, upper] = wilsonInterval(80, 100);
+  assert.ok(lower < 0.8 && upper > 0.8);
+  const rows = generateCohort({ size: 2000, seed: 31, scenario: "balanced" });
+  assert.ok(careRates(rows, "age_sex").filter((row) => !row.suppressed).every((row) => row.confidenceInterval[0] <= row.rate && row.rate <= row.confidenceInterval[1]));
 });
 
 test("performance metrics stay within expected bounds", () => {

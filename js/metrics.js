@@ -13,6 +13,15 @@ function binary(value) {
   return value === 1 || value === "1" || value === true;
 }
 
+export function wilsonInterval(successes, total, z = 1.96) {
+  if (!total) return [null, null];
+  const p = successes / total;
+  const denominator = 1 + z ** 2 / total;
+  const center = (p + z ** 2 / (2 * total)) / denominator;
+  const margin = z * Math.sqrt((p * (1 - p) + z ** 2 / (4 * total)) / total) / denominator;
+  return [Math.max(0, center - margin), Math.min(1, center + margin)];
+}
+
 export function auc(rows, scoreField = "predicted_risk_2y", outcomeField = "outcome_2y") {
   const valid = rows
     .map((row) => ({ score: Number(row[scoreField]), outcome: Number(row[outcomeField]) }))
@@ -141,12 +150,14 @@ export function careRates(rows, groupField, minCell = MIN_CELL_DEFAULT) {
         return eligible ? binary(row[eligible]) : true;
       });
       const numerator = denominator.filter((row) => binary(row[outcome])).length;
+      const confidenceInterval = wilsonInterval(numerator, denominator.length);
       return {
         group,
         measure: label,
         numerator,
         denominator: denominator.length,
         rate: denominator.length >= minCell ? safeDivide(numerator, denominator.length) : null,
+        confidenceInterval: denominator.length >= minCell ? confidenceInterval : [null, null],
         suppressed: denominator.length < minCell
       };
     });

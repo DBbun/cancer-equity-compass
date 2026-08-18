@@ -1,4 +1,4 @@
-import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-2";
+import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-3";
 import {
   MIN_CELL_DEFAULT,
   performance,
@@ -69,27 +69,60 @@ function renderReadiness() {
     kpi("Selected-field missingness", formatPercent(overallMissing), invalid.valid ? "Canonical validation passed" : `${invalid.errors.length} validation issue(s)`)
   ].join("");
   $("#representation-chart").innerHTML = counts.map((row) => `<div class="bar-row"><span>${escapeHtml(row.group)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(1, row.share * 100)}%"></div></div><b>${formatPercent(row.share, 0)}</b></div>`).join("");
-  $("#missingness-table").innerHTML = table(
-    ["Population", "Field", "N", "Missing"],
-    missingness.map((row) => [row.group, row.field.replaceAll("_", " "), row.n.toLocaleString(), formatPercent(row.rate)])
-  );
+  renderMissingnessHeatmap(missingness, missingFields);
 }
 
 function renderCare() {
   if (!cohort.length) return;
   const field = currentGroupField("care");
   const rows = careRates(cohort, field);
-  $("#care-table").innerHTML = table(
-    ["Population", "Care measure", "Eligible / observed", "Completed", "Rate"],
-    rows.map((row) => [
-      row.group,
-      row.measure,
-      row.denominator.toLocaleString(),
-      row.numerator.toLocaleString(),
-      row.suppressed ? "Suppressed" : formatPercent(row.rate)
-    ]),
-    (row) => row[4] === "Suppressed" ? "suppressed" : ""
-  );
+  renderCareCharts(rows);
+}
+
+function renderMissingnessHeatmap(rows, fields) {
+  const groups = [...new Set(rows.map((row) => row.group))];
+  const labels = Object.fromEntries(fields.map((field) => [field, field.replaceAll("_", " ")]));
+  const lookup = new Map(rows.map((row) => [`${row.group}|${row.field}`, row]));
+  const maxRate = Math.max(0.01, ...rows.map((row) => row.rate || 0));
+  const header = `<div class="heatmap-cell heatmap-corner">Population</div>${fields.map((field) => `<div class="heatmap-cell heatmap-header">${escapeHtml(labels[field])}</div>`).join("")}`;
+  const body = groups.map((group) => {
+    const n = lookup.get(`${group}|${fields[0]}`)?.n ?? 0;
+    const cells = fields.map((field) => {
+      const row = lookup.get(`${group}|${field}`);
+      const intensity = row?.rate ? 0.12 + 0.88 * row.rate / maxRate : 0;
+      const foreground = intensity > 0.56 ? "#fff" : "#102f2a";
+      const background = row?.rate ? `rgba(158,59,45,${intensity.toFixed(2)})` : "#edf3f1";
+      return `<div class="heatmap-cell heatmap-value" style="background:${background};color:${foreground}" title="${escapeHtml(group)} — ${escapeHtml(labels[field])}: ${(row?.missing ?? 0).toLocaleString()} missing of ${(row?.n ?? 0).toLocaleString()} (${formatPercent(row?.rate)})"><b>${formatPercent(row?.rate)}</b></div>`;
+    }).join("");
+    return `<div class="heatmap-cell heatmap-row-label"><b>${escapeHtml(group)}</b><small>n=${n.toLocaleString()}</small></div>${cells}`;
+  }).join("");
+  $("#missingness-table").innerHTML = `<div class="heatmap" style="grid-template-columns:minmax(150px,1.25fr) repeat(${fields.length},minmax(82px,1fr))">${header}${body}</div><div class="heatmap-legend"><span>0% missing</span><i></i><span>${formatPercent(maxRate)} or higher</span></div>`;
+}
+
+function renderCareCharts(rows) {
+  const valid = rows.filter((row) => !row.suppressed && row.rate != null);
+  const groups = [...new Set(valid.map((row) => row.group))];
+  const measures = [...new Set(valid.map((row) => row.measure))];
+  const reference = groups[0];
+  const refRates = new Map(valid.filter((row) => row.group === reference).map((row) => [row.measure, row.rate]));
+  const gaps = valid.filter((row) => row.group !== reference).map((row) => ({ ...row, gap: row.rate - (refRates.get(row.measure) ?? row.rate) }));
+  const worst = [...gaps].sort((a, b) => a.gap - b.gap)[0];
+  $("#care-headline").innerHTML = worst ? `<b>Largest synthetic care-gap signal:</b> ${escapeHtml(worst.group)} has ${Math.abs(worst.gap * 100).toFixed(1)} percentage points lower ${escapeHtml(worst.measure.toLowerCase())} than ${escapeHtml(reference)} (${worst.numerator.toLocaleString()} of ${worst.denominator.toLocaleString()} completed).` : "No reportable comparison is available.";
+  const colors = ["#2e7d78", "#f46b45", "#785aa8", "#d49b26", "#4382b8", "#9e3b2d"];
+  const rateRows = measures.map((measure) => ({
+    label: measure,
+    values: groups.map((group) => valid.find((row) => row.group === group && row.measure === measure)?.rate ?? null),
+    tooltips: groups.map((group) => {
+      const row = valid.find((candidate) => candidate.group === group && candidate.measure === measure);
+      return row ? `${group}: ${formatPercent(row.rate)} (${row.numerator.toLocaleString()} of ${row.denominator.toLocaleString()}); 95% CI ${formatPercent(row.confidenceInterval[0])}–${formatPercent(row.confidenceInterval[1])}` : "Not reportable";
+    })
+  }));
+  $("#care-rate-chart").innerHTML = horizontalGroupedBars(rateRows, groups, colors, { percent: true, minWidth: 620 });
+  const gapRows = measures.map((measure) => ({ label: measure, values: groups.slice(1).map((group) => gaps.find((row) => row.group === group && row.measure === measure)?.gap ?? null) }));
+  $("#care-gap-chart").innerHTML = divergingBars(gapRows, groups.slice(1), colors.slice(1));
+  const cascadeMeasures = ["Treatment receipt", "Treatment adherence", "Follow-up completion", "Survivorship care plan"];
+  const cascadeRows = cascadeMeasures.map((measure) => ({ label: measure, values: groups.map((group) => valid.find((row) => row.group === group && row.measure === measure)?.rate ?? null) }));
+  $("#care-cascade-chart").innerHTML = lineCategoryChart(cascadeRows, groups, colors);
 }
 
 function refreshFairnessGroups() {
@@ -123,6 +156,7 @@ function renderFairness() {
   const comparison = cohort.filter((row) => String(row[field] ?? "Missing") === comparisonName);
   const audit = directionalFairness(reference, comparison, threshold);
   renderModelCharts(reference, comparison, referenceName, comparisonName, threshold);
+  renderAgeAndThresholdCharts(reference, comparison, referenceName, comparisonName);
   const definitions = [
     ["Statistical parity difference", audit.statisticalParityDifference, "Difference in the share classified above threshold"],
     ["Sensitivity difference", audit.truePositiveRateDifference, "Difference in detected cases among participants with the outcome"],
@@ -151,6 +185,69 @@ function svgText(x, y, value, className = "chart-label", anchor = "middle") {
 
 function chartLegend(referenceName, comparisonName, includeIdeal = false) {
   return `<div class="chart-legend"><span><i class="reference"></i>${escapeHtml(referenceName)}</span><span><i class="comparison"></i>${escapeHtml(comparisonName)}</span>${includeIdeal ? "<span><i class=\"ideal\"></i>Ideal calibration</span>" : ""}</div>`;
+}
+
+function legend(items, colors) {
+  return `<div class="chart-legend">${items.map((item, index) => `<span><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item)}</span>`).join("")}</div>`;
+}
+
+function horizontalGroupedBars(rows, series, colors, { percent = false, minWidth = 560 } = {}) {
+  const width = Math.max(minWidth, 660); const labelWidth = 170; const right = 22; const top = 24; const rowHeight = Math.max(44, series.length * 15 + 17); const height = top + rows.length * rowHeight + 42; const plotWidth = width - labelWidth - right;
+  const marks = rows.map((row, rowIndex) => row.values.map((value, seriesIndex) => {
+    if (value == null) return "";
+    const y = top + rowIndex * rowHeight + seriesIndex * 14;
+    const tooltip = row.tooltips?.[seriesIndex] ?? `${series[seriesIndex]}: ${percent ? formatPercent(value) : formatNumber(value)}`;
+    return `<rect x="${labelWidth}" y="${y}" width="${Math.max(1, value * plotWidth)}" height="10" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(tooltip)}</title></rect>`;
+  }).join("") + svgText(labelWidth - 8, top + rowIndex * rowHeight + 11, row.label, "chart-label", "end")).join("");
+  const ticks = [0, .25, .5, .75, 1].map((value) => `<line x1="${labelWidth + value * plotWidth}" y1="${top - 8}" x2="${labelWidth + value * plotWidth}" y2="${height - 34}" class="chart-grid"/>${svgText(labelWidth + value * plotWidth, height - 14, formatPercent(value, 0))}`).join("");
+  return `<svg class="audit-chart" style="min-width:${minWidth}px" viewBox="0 0 ${width} ${height}" role="img">${ticks}${marks}</svg>${legend(series, colors)}`;
+}
+
+function divergingBars(rows, series, colors) {
+  const width = 680; const labelWidth = 170; const center = 430; const top = 24; const rowHeight = Math.max(44, series.length * 15 + 17); const height = top + rows.length * rowHeight + 42; const scale = 650;
+  const marks = rows.map((row, rowIndex) => row.values.map((value, seriesIndex) => {
+    if (value == null) return "";
+    const x = value < 0 ? center + value * scale : center;
+    const y = top + rowIndex * rowHeight + seriesIndex * 14;
+    return `<rect x="${x}" y="${y}" width="${Math.max(1, Math.abs(value) * scale)}" height="10" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(series[seriesIndex])}: ${(value * 100).toFixed(1)} percentage points</title></rect>`;
+  }).join("") + svgText(labelWidth - 8, top + rowIndex * rowHeight + 11, row.label, "chart-label", "end")).join("");
+  return `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img"><line x1="${center}" y1="8" x2="${center}" y2="${height - 30}" class="threshold-line"/>${svgText(center, height - 10, "0 pp (reference)")}${marks}</svg>${legend(series, colors)}`;
+}
+
+function lineCategoryChart(rows, series, colors) {
+  const width = 920; const height = 330; const left = 72; const right = 25; const top = 25; const bottom = 75; const plotWidth = width - left - right; const plotHeight = height - top - bottom;
+  const grid = [0, .25, .5, .75, 1].map((value) => `<line x1="${left}" y1="${top + plotHeight - value * plotHeight}" x2="${width - right}" y2="${top + plotHeight - value * plotHeight}" class="chart-grid"/>${svgText(left - 8, top + plotHeight - value * plotHeight + 4, formatPercent(value, 0), "chart-label", "end")}`).join("");
+  const lines = series.map((name, seriesIndex) => {
+    const points = rows.map((row, index) => ({ x: left + index * plotWidth / Math.max(1, rows.length - 1), y: top + plotHeight - (row.values[seriesIndex] ?? 0) * plotHeight, value: row.values[seriesIndex] }));
+    return `<polyline fill="none" stroke="${colors[seriesIndex % colors.length]}" stroke-width="3" points="${points.map((point) => `${point.x},${point.y}`).join(" ")}"/>${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(name)}: ${formatPercent(point.value)}</title></circle>`).join("")}`;
+  }).join("");
+  const labels = rows.map((row, index) => svgText(left + index * plotWidth / Math.max(1, rows.length - 1), height - 38, row.label, "chart-label")).join("");
+  return `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img">${grid}${lines}${labels}</svg>${legend(series, colors)}`;
+}
+
+function renderAgeAndThresholdCharts(reference, comparison, referenceName, comparisonName) {
+  const ageGroups = ["0-4", "5-9", "10-14", "15-19", "20-29", "30-39"];
+  const ageRows = ageGroups.map((age) => {
+    const subset = cohort.filter((row) => row.age_group === age);
+    const p = performance(subset, Number($("#threshold").value));
+    const meanRisk = subset.length ? subset.reduce((sum, row) => sum + Number(row.predicted_risk_2y), 0) / subset.length : 0;
+    return { label: age, values: [p.eventRate, meanRisk, p.selectionRate] };
+  });
+  $("#age-analysis-chart").innerHTML = lineCategoryChart(ageRows, ["Observed outcome", "Mean predicted risk", "Model-positive"], ["#102f2a", "#2e7d78", "#f46b45"]);
+  const thresholds = Array.from({ length: 12 }, (_, index) => 0.05 + index * 0.05);
+  const thresholdRows = thresholds.map((threshold) => {
+    const audit = directionalFairness(reference, comparison, threshold);
+    return { label: `${Math.round(threshold * 100)}%`, values: [audit.truePositiveRateDifference, audit.falseNegativeRateDifference, audit.statisticalParityDifference] };
+  });
+  $("#threshold-analysis-chart").innerHTML = signedLineChart(thresholdRows, ["Sensitivity gap", "False-negative gap", "Selection-rate gap"], ["#2e7d78", "#9e3b2d", "#f46b45"], referenceName, comparisonName);
+}
+
+function signedLineChart(rows, series, colors, referenceName, comparisonName) {
+  const width = 780; const height = 330; const left = 58; const right = 20; const top = 25; const bottom = 55; const plotWidth = width - left - right; const plotHeight = height - top - bottom; const maxAbs = Math.max(.05, ...rows.flatMap((row) => row.values.map((value) => Math.abs(value || 0))));
+  const y = (value) => top + plotHeight / 2 - (value / maxAbs) * plotHeight / 2;
+  const marks = series.map((name, seriesIndex) => { const points = rows.map((row, index) => ({ x: left + index * plotWidth / (rows.length - 1), y: y(row.values[seriesIndex] || 0), value: row.values[seriesIndex] })); return `<polyline fill="none" stroke="${colors[seriesIndex]}" stroke-width="3" points="${points.map((point) => `${point.x},${point.y}`).join(" ")}"/>${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="3" fill="${colors[seriesIndex]}"><title>${escapeHtml(name)}: ${(point.value * 100).toFixed(1)} pp</title></circle>`).join("")}`; }).join("");
+  const labels = rows.map((row, index) => svgText(left + index * plotWidth / (rows.length - 1), height - 25, row.label)).join("");
+  return `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img"><line x1="${left}" y1="${y(0)}" x2="${width - right}" y2="${y(0)}" class="threshold-line"/>${svgText(left - 8, y(maxAbs) + 4, `+${(maxAbs * 100).toFixed(0)} pp`, "chart-label", "end")}${svgText(left - 8, y(0) + 4, "0", "chart-label", "end")}${svgText(left - 8, y(-maxAbs) + 4, `-${(maxAbs * 100).toFixed(0)} pp`, "chart-label", "end")}${marks}${labels}</svg>${legend(series, colors)}<p class="formula">Direction: ${escapeHtml(comparisonName)} minus ${escapeHtml(referenceName)}.</p>`;
 }
 
 function renderModelCharts(reference, comparison, referenceName, comparisonName, threshold) {
@@ -194,6 +291,21 @@ function renderIntegration() {
   $("#download-audit-report").disabled = !cohort.length;
 }
 
+function renderExecutiveSummary() {
+  if (!cohort.length) return;
+  const threshold = Number($("#threshold").value);
+  const readinessField = currentGroupField("readiness");
+  const groups = groupCounts(cohort, readinessField).filter((row) => row.group !== "Missing");
+  const care = careRates(cohort, currentGroupField("care")).filter((row) => !row.suppressed && row.rate != null);
+  const reference = groups[0]?.group;
+  const referenceCare = new Map(care.filter((row) => row.group === reference).map((row) => [row.measure, row.rate]));
+  const gaps = care.filter((row) => row.group !== reference).map((row) => ({ ...row, gap: row.rate - (referenceCare.get(row.measure) ?? row.rate) })).sort((a, b) => a.gap - b.gap);
+  const worst = gaps[0];
+  const overall = performance(cohort, threshold);
+  const scenario = SCENARIOS[$("#scenario").value];
+  $("#executive-summary").innerHTML = `<div class="eyebrow">Cancer challenge executive summary</div><h3>What this demonstration contributes to the CCDI Data Ecosystem</h3><p><b>Objective.</b> Provide a shovel-ready, privacy-first analytical toolkit that detects data-readiness problems, eligibility-conditioned care gaps, and prediction-performance heterogeneity before models or datasets are reused.</p><div class="summary-grid"><div><span>Demonstration cohort</span><b>${cohort.length.toLocaleString()} simulated childhood/AYA records</b><small>Ages 0-39; no CCDI participant data</small></div><div><span>Scenario</span><b>${escapeHtml(scenario.label)}</b><small>Known synthetic ground truth</small></div><div><span>Active score</span><b>Synthetic 2-year adverse outcome</b><small>AUC ${formatNumber(overall.auc)}; not clinically validated</small></div><div><span>Decision setting</span><b>${formatPercent(threshold, 0)} exploratory threshold</b><small>${formatPercent(overall.selectionRate)} of records model-positive</small></div></div><p><b>Leading review signal.</b> ${worst ? `${escapeHtml(worst.group)} shows ${Math.abs(worst.gap * 100).toFixed(1)} percentage points ${worst.gap < 0 ? "lower" : "higher"} ${escapeHtml(worst.measure.toLowerCase())} than ${escapeHtml(reference)}.` : "No reportable care comparison is available."} This is a simulated signal for software evaluation—not a causal finding or estimate of real-world inequity.</p><p><b>Challenge relevance.</b> The browser-only tool produces reusable aggregate audits, supports configurable synthetic preliminary data, and defines an adapter boundary for later testing with authorized CCDI-compatible data. Next validation steps are model-specific adapters, CCDI terminology mapping, and evaluation with approved data and collaborators.</p>`;
+}
+
 function currentAuditReport() {
   return buildAuditReport(cohort, {
     source,
@@ -212,6 +324,7 @@ function table(headers, rows, className = () => "") {
 
 function renderAll() {
   renderStatus();
+  renderExecutiveSummary();
   renderReadiness();
   renderCare();
   refreshFairnessGroups();
