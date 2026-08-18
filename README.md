@@ -2,6 +2,8 @@
 
 A privacy-first, browser-based toolkit for evaluating whether childhood and adolescent and young adult (AYA) cancer datasets, care pathways, and prediction models work consistently across patient populations.
 
+**Live application:** https://dbbun.github.io/cancer-equity-compass/
+
 This repository is an early working prototype for **Phase I, Track 1, Milestone 1** of the NIH/NCI Childhood, Adolescent and Young Adult Cancer Data Innovation Challenge. It uses only simulated patients. It does not contain CCDI participant data and does not make claims about real-world disparities or clinical validity.
 
 ## Five modules
