@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { generateCohort } from "../js/synthetic.js";
-import { performance, directionalFairness, groupCounts, careRates } from "../js/metrics.js";
+import { performance, directionalFairness, groupCounts, careRates, riskHistogram, calibrationBins } from "../js/metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows } from "../js/adapter.js";
 import { buildAuditReport } from "../js/report.js";
 
@@ -107,4 +107,15 @@ test("aggregate audit report excludes participant-level records", () => {
   assert.ok(report.model.directionalFairness);
   assert.equal(serialized.includes("participant_id"), false);
   assert.equal(serialized.includes(rows[0].participant_id), false);
+});
+
+test("risk histogram and calibration bins preserve valid cohort totals", () => {
+  const rows = generateCohort({ size: 2500, seed: 55, scenario: "miscalibration" });
+  const histogram = riskHistogram(rows, 20);
+  const calibration = calibrationBins(rows, 10);
+  assert.equal(histogram.reduce((sum, bin) => sum + bin.count, 0), rows.length);
+  assert.ok(Math.abs(histogram.reduce((sum, bin) => sum + bin.share, 0) - 1) < 1e-12);
+  assert.equal(calibration.reduce((sum, bin) => sum + bin.n, 0), rows.length);
+  assert.ok(calibration.filter((bin) => bin.n).every((bin) => bin.meanPredicted >= 0 && bin.meanPredicted <= 1));
+  assert.ok(calibration.filter((bin) => bin.n).every((bin) => bin.observedRate >= 0 && bin.observedRate <= 1));
 });

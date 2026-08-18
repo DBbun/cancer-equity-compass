@@ -20,6 +20,11 @@ model performance, and directional fairness results. Participant-level rows are
 not included in this report, and small cells are suppressed using the documented
 minimum reporting threshold.
 
+The model-assurance view includes population-overlaid predicted-risk
+histograms, an interactive decision-threshold marker, and subgroup calibration
+plots against ideal calibration. Calibration bands with fewer than 30 records
+are omitted from the visual display.
+
 ## Run locally
 
 No build step is required.

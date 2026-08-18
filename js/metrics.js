@@ -165,4 +165,49 @@ export function groupPerformance(rows, groupField, threshold, minCell = MIN_CELL
   });
 }
 
+export function riskHistogram(rows, binCount = 20, scoreField = "predicted_risk_2y") {
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    lower: index / binCount,
+    upper: (index + 1) / binCount,
+    count: 0,
+    share: 0
+  }));
+  let valid = 0;
+  for (const row of rows) {
+    const score = Number(row[scoreField]);
+    if (!Number.isFinite(score) || score < 0 || score > 1) continue;
+    const index = Math.min(binCount - 1, Math.floor(score * binCount));
+    bins[index].count += 1;
+    valid += 1;
+  }
+  for (const bin of bins) bin.share = valid ? bin.count / valid : 0;
+  return bins;
+}
+
+export function calibrationBins(rows, binCount = 10, scoreField = "predicted_risk_2y", outcomeField = "outcome_2y") {
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    lower: index / binCount,
+    upper: (index + 1) / binCount,
+    n: 0,
+    predictedSum: 0,
+    observedSum: 0
+  }));
+  for (const row of rows) {
+    const score = Number(row[scoreField]);
+    const outcome = Number(row[outcomeField]);
+    if (!Number.isFinite(score) || score < 0 || score > 1 || ![0, 1].includes(outcome)) continue;
+    const index = Math.min(binCount - 1, Math.floor(score * binCount));
+    bins[index].n += 1;
+    bins[index].predictedSum += score;
+    bins[index].observedSum += outcome;
+  }
+  return bins.map(({ lower, upper, n, predictedSum, observedSum }) => ({
+    lower,
+    upper,
+    n,
+    meanPredicted: n ? predictedSum / n : null,
+    observedRate: n ? observedSum / n : null
+  }));
+}
+
 export const __test__ = { safeDivide, mean };

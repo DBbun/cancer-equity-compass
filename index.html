@@ -105,6 +105,10 @@
         <label>Risk threshold <output id="threshold-output">20%</output><input id="threshold" type="range" min="0.05" max="0.60" value="0.20" step="0.01"></label>
       </div>
       <div class="kpi-grid" id="performance-kpis"></div>
+      <div class="two-column model-charts">
+        <article class="card"><h3>Predicted-risk distribution</h3><p class="formula">Each bar shows the share of a population within a predicted-risk interval. The vertical line marks the current model-positive threshold.</p><div id="risk-histogram"></div></article>
+        <article class="card"><h3>Calibration by predicted-risk band</h3><p class="formula">Points compare mean predicted risk with the observed synthetic outcome rate. Points above the diagonal indicate underprediction; points below indicate overprediction. Bands with fewer than 30 records are omitted.</p><div id="calibration-chart"></div></article>
+      </div>
       <article class="card"><h3>Directional fairness measures</h3><p class="formula">Comparison population minus reference population. Zero means no measured difference.</p><div class="metric-grid" id="fairness-metrics"></div></article>
       <article class="card"><h3>Population performance table</h3><div id="performance-table"></div></article>
     </section>
@@ -120,6 +124,6 @@
   </main>
 
   <footer><div><b>Childhood and AYA Cancer Equity Compass</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
-  <script type="module" src="js/app.js?v=20260818-2"></script>
+  <script type="module" src="js/app.js?v=20260818-3"></script>
 </body>
 </html>

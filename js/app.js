@@ -6,7 +6,9 @@ import {
   groupCounts,
   missingnessByGroup,
   careRates,
-  groupPerformance
+  groupPerformance,
+  riskHistogram,
+  calibrationBins
 } from "./metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows, REQUIRED_FIELDS } from "./adapter.js";
 import { buildAuditReport } from "./report.js";
@@ -120,6 +122,7 @@ function renderFairness() {
   const reference = cohort.filter((row) => String(row[field] ?? "Missing") === referenceName);
   const comparison = cohort.filter((row) => String(row[field] ?? "Missing") === comparisonName);
   const audit = directionalFairness(reference, comparison, threshold);
+  renderModelCharts(reference, comparison, referenceName, comparisonName, threshold);
   const definitions = [
     ["Statistical parity difference", audit.statisticalParityDifference, "Difference in the share classified above threshold"],
     ["Sensitivity difference", audit.truePositiveRateDifference, "Difference in detected cases among participants with the outcome"],
@@ -140,6 +143,46 @@ function renderFairness() {
       : [row.group, row.count.toLocaleString(), formatNumber(row.metrics.auc), formatNumber(row.metrics.calibrationRatio), formatPercent(row.metrics.sensitivity), formatPercent(row.metrics.specificity), formatPercent(row.metrics.fnr), formatPercent(row.metrics.selectionRate)]),
     (row) => row[2] === "Suppressed" ? "suppressed" : ""
   );
+}
+
+function svgText(x, y, value, className = "chart-label", anchor = "middle") {
+  return `<text x="${x}" y="${y}" class="${className}" text-anchor="${anchor}">${escapeHtml(value)}</text>`;
+}
+
+function chartLegend(referenceName, comparisonName, includeIdeal = false) {
+  return `<div class="chart-legend"><span><i class="reference"></i>${escapeHtml(referenceName)}</span><span><i class="comparison"></i>${escapeHtml(comparisonName)}</span>${includeIdeal ? "<span><i class=\"ideal\"></i>Ideal calibration</span>" : ""}</div>`;
+}
+
+function renderModelCharts(reference, comparison, referenceName, comparisonName, threshold) {
+  const width = 720; const height = 310;
+  const left = 52; const right = 18; const top = 24; const bottom = 52;
+  const plotWidth = width - left - right; const plotHeight = height - top - bottom;
+  const referenceBins = riskHistogram(reference, 20);
+  const comparisonBins = riskHistogram(comparison, 20);
+  const maxShare = Math.max(0.01, ...referenceBins.map((bin) => bin.share), ...comparisonBins.map((bin) => bin.share));
+  const groupWidth = plotWidth / referenceBins.length;
+  const bars = referenceBins.map((bin, index) => {
+    const referenceHeight = bin.share / maxShare * plotHeight;
+    const comparisonHeight = comparisonBins[index].share / maxShare * plotHeight;
+    const x = left + index * groupWidth;
+    return `<rect class="chart-bar reference" x="${x + 1}" y="${top + plotHeight - referenceHeight}" width="${Math.max(1, groupWidth / 2 - 2)}" height="${referenceHeight}"><title>${escapeHtml(referenceName)}: ${formatPercent(bin.share)} of scores from ${formatPercent(bin.lower, 0)} to ${formatPercent(bin.upper, 0)}</title></rect><rect class="chart-bar comparison" x="${x + groupWidth / 2}" y="${top + plotHeight - comparisonHeight}" width="${Math.max(1, groupWidth / 2 - 2)}" height="${comparisonHeight}"><title>${escapeHtml(comparisonName)}: ${formatPercent(comparisonBins[index].share)} of scores from ${formatPercent(bin.lower, 0)} to ${formatPercent(bin.upper, 0)}</title></rect>`;
+  }).join("");
+  const thresholdX = left + threshold * plotWidth;
+  const xTicks = [0, .25, .5, .75, 1].map((value) => `${svgText(left + value * plotWidth, height - 25, formatPercent(value, 0))}<line x1="${left + value * plotWidth}" y1="${top + plotHeight}" x2="${left + value * plotWidth}" y2="${top + plotHeight + 5}" class="chart-axis"/>`).join("");
+  $("#risk-histogram").innerHTML = `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Predicted risk distribution for ${escapeHtml(referenceName)} and ${escapeHtml(comparisonName)}"><line x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}" class="chart-axis"/>${bars}<line x1="${thresholdX}" y1="${top}" x2="${thresholdX}" y2="${top + plotHeight}" class="threshold-line"/>${svgText(Math.min(width - 75, thresholdX + 6), top + 12, `${formatPercent(threshold, 0)} threshold`, "threshold-label", "start")}${xTicks}${svgText(left + plotWidth / 2, height - 5, "Predicted two-year risk", "chart-axis-title")}</svg>${chartLegend(referenceName, comparisonName)}`;
+
+  const calibration = [
+    { name: referenceName, bins: calibrationBins(reference, 10), className: "reference" },
+    { name: comparisonName, bins: calibrationBins(comparison, 10), className: "comparison" }
+  ];
+  const points = calibration.map((series) => {
+    const valid = series.bins.filter((bin) => bin.n >= MIN_CELL_DEFAULT && bin.meanPredicted != null && bin.observedRate != null);
+    const coordinates = valid.map((bin) => `${left + bin.meanPredicted * plotWidth},${top + plotHeight - bin.observedRate * plotHeight}`).join(" ");
+    const circles = valid.map((bin) => `<circle class="chart-point ${series.className}" cx="${left + bin.meanPredicted * plotWidth}" cy="${top + plotHeight - bin.observedRate * plotHeight}" r="5"><title>${escapeHtml(series.name)}: predicted ${formatPercent(bin.meanPredicted)}, observed ${formatPercent(bin.observedRate)}, n=${bin.n.toLocaleString()}</title></circle>`).join("");
+    return `${coordinates ? `<polyline class="chart-line ${series.className}" points="${coordinates}"/>` : ""}${circles}`;
+  }).join("");
+  const grid = [0, .25, .5, .75, 1].map((value) => `<line x1="${left}" y1="${top + plotHeight - value * plotHeight}" x2="${width - right}" y2="${top + plotHeight - value * plotHeight}" class="chart-grid"/>${svgText(left - 8, top + plotHeight - value * plotHeight + 4, formatPercent(value, 0), "chart-label", "end")}${svgText(left + value * plotWidth, height - 25, formatPercent(value, 0))}`).join("");
+  $("#calibration-chart").innerHTML = `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Observed versus predicted risk calibration plot">${grid}<line x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top}" class="ideal-line"/>${points}${svgText(left + plotWidth / 2, height - 5, "Mean predicted risk", "chart-axis-title")}${svgText(14, top + plotHeight / 2, "Observed outcome rate", "chart-axis-title vertical")}</svg>${chartLegend(referenceName, comparisonName, true)}`;
 }
 
 function renderIntegration() {
