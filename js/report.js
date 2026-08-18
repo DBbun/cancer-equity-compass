@@ -1,5 +1,5 @@
 import {
-  MIN_CELL_DEFAULT,
+  MIN_GROUP_SIZE_DEFAULT,
   careRates,
   directionalFairness,
   groupCounts,
@@ -35,12 +35,12 @@ export function buildAuditReport(rows, options = {}) {
     referenceGroup = "",
     comparisonGroup = "",
     threshold = 0.2,
-    minCell = MIN_CELL_DEFAULT,
+    minGroupSize = MIN_GROUP_SIZE_DEFAULT,
     generatedAt = new Date().toISOString()
   } = options;
   const validation = validateRows(rows);
   const availableGroups = groupCounts(rows, fairnessField)
-    .filter((row) => row.group !== "Missing" && row.count >= minCell);
+    .filter((row) => row.group !== "Missing" && row.count >= minGroupSize);
   const reference = referenceGroup || availableGroups[0]?.group || "";
   const comparison = comparisonGroup || availableGroups[1]?.group || reference;
   const referenceRows = groupRows(rows, fairnessField, reference);
@@ -53,8 +53,8 @@ export function buildAuditReport(rows, options = {}) {
       generatedAt,
       disclosureControl: {
         participantLevelRowsIncluded: false,
-        minimumReportedCell: minCell,
-        note: "Suppressed cells do not include rates or model-performance metrics."
+        minimumReportedGroupSize: minGroupSize,
+        note: "Suppressed subgroup results do not include rates or model-performance metrics."
       }
     },
     dataset: {
@@ -76,12 +76,12 @@ export function buildAuditReport(rows, options = {}) {
     readiness: {
       representation: groupCounts(rows, readinessField),
       missingness: missingnessByGroup(rows, readinessField, DEFAULT_MISSINGNESS_FIELDS)
-        .map((row) => row.n < minCell ? { ...row, missing: null, rate: null, suppressed: true } : { ...row, suppressed: false })
+        .map((row) => row.n < minGroupSize ? { ...row, missing: null, rate: null, suppressed: true } : { ...row, suppressed: false })
     },
-    care: careRates(rows, careField, minCell),
+    care: careRates(rows, careField, minGroupSize),
     model: {
       overall: performance(rows, threshold),
-      byPopulation: groupPerformance(rows, fairnessField, threshold, minCell)
+      byPopulation: groupPerformance(rows, fairnessField, threshold, minGroupSize)
         .map(withoutSuppressedMetrics),
       directionalFairness: reference && comparison
         ? directionalFairness(referenceRows, comparisonRows, threshold)

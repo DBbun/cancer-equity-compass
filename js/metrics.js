@@ -1,4 +1,4 @@
-export const MIN_CELL_DEFAULT = 30;
+export const MIN_GROUP_SIZE_DEFAULT = 30;
 
 function safeDivide(numerator, denominator) {
   return denominator ? numerator / denominator : null;
@@ -187,7 +187,7 @@ export function missingnessByGroup(rows, groupField, fields) {
   });
 }
 
-export function careRates(rows, groupField, minCell = MIN_CELL_DEFAULT) {
+export function careRates(rows, groupField, minGroupSize = MIN_GROUP_SIZE_DEFAULT) {
   const definitions = [
     ["Molecular testing", "molecular_test_completed", "molecular_test_eligible"],
     ["Treatment receipt", "treatment_received", "treatment_eligible"],
@@ -214,22 +214,22 @@ export function careRates(rows, groupField, minCell = MIN_CELL_DEFAULT) {
         measure: label,
         numerator,
         denominator: denominator.length,
-        rate: denominator.length >= minCell ? safeDivide(numerator, denominator.length) : null,
-        confidenceInterval: denominator.length >= minCell ? confidenceInterval : [null, null],
-        suppressed: denominator.length < minCell
+        rate: denominator.length >= minGroupSize ? safeDivide(numerator, denominator.length) : null,
+        confidenceInterval: denominator.length >= minGroupSize ? confidenceInterval : [null, null],
+        suppressed: denominator.length < minGroupSize
       };
     });
   });
 }
 
-export function groupPerformance(rows, groupField, threshold, minCell = MIN_CELL_DEFAULT) {
+export function groupPerformance(rows, groupField, threshold, minGroupSize = MIN_GROUP_SIZE_DEFAULT) {
   return groupCounts(rows, groupField).map(({ group }) => {
     const subset = rows.filter((row) => String(row[groupField] ?? "Missing") === group);
     return {
       group,
       count: subset.length,
-      suppressed: subset.length < minCell,
-      metrics: subset.length < minCell ? null : performance(subset, threshold)
+      suppressed: subset.length < minGroupSize,
+      metrics: subset.length < minGroupSize ? null : performance(subset, threshold)
     };
   });
 }

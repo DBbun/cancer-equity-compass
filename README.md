@@ -17,8 +17,8 @@ This repository is an early working prototype for **Phase I, Track 1, Milestone 
 The integration layer can also export a disclosure-conscious aggregate audit
 report containing the active configuration, readiness measures, care rates,
 model performance, and directional fairness results. Participant-level rows are
-not included in this report, and small cells are suppressed using the documented
-minimum reporting threshold.
+not included in this report, and results for groups below the documented minimum
+reporting size are suppressed.
 
 The model-assurance view includes population-overlaid predicted-risk
 histograms, subgroup calibration plots, age-stratified outcome/prediction/flag

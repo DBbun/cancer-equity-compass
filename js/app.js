@@ -1,6 +1,6 @@
 import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-4";
 import {
-  MIN_CELL_DEFAULT,
+  MIN_GROUP_SIZE_DEFAULT,
   performance,
   directionalFairness,
   groupCounts,
@@ -110,7 +110,7 @@ function renderTable1() {
     rows.push([label, describeCategorical(groupA, variable), describeCategorical(groupB, variable), `χ²=${formatNumber(result.statistic)}; p=${formatP(result.pValue)}`]);
   }
   $("#table1-summary").innerHTML = `<div class="table-one-summary"><b>Comparison:</b> ${escapeHtml(groupAName)} (n=${groupA.length.toLocaleString()}) versus ${escapeHtml(groupBName)} (n=${groupB.length.toLocaleString()}). <b>Scope:</b> demographics, cancer characteristics, care, and outcomes. Tests are descriptive checks of the generated data-generating process.</div>`;
-  $("#table1").innerHTML = `<table><thead><tr><th>Characteristic / outcome</th><th>${escapeHtml(groupAName)}<br><small>n=${groupA.length.toLocaleString()}</small></th><th>${escapeHtml(groupBName)}<br><small>n=${groupB.length.toLocaleString()}</small></th><th>Statistical comparison</th></tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell, index) => `<td class="${index > 0 ? "numeric" : ""}">${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  $("#table1").innerHTML = `<table><thead><tr><th>Characteristic / outcome</th><th>${escapeHtml(groupAName)}<br><small>n=${groupA.length.toLocaleString()}</small></th><th>${escapeHtml(groupBName)}<br><small>n=${groupB.length.toLocaleString()}</small></th><th>Statistical comparison</th></tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value, index) => `<td class="${index > 0 ? "numeric" : ""}">${value}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function updateScenarioDescription() {
@@ -139,7 +139,7 @@ function renderReadiness() {
   $("#readiness-kpis").innerHTML = [
     kpi("Participants", cohort.length.toLocaleString(), "Rows in the active cohort"),
     kpi("Population groups", String(counts.length), field.replaceAll("_", " ")),
-    kpi("Smallest group", smallestRow ? `${smallestRow.group}: ${smallestRow.count.toLocaleString()}` : "—", smallestRow?.count < MIN_CELL_DEFAULT ? "Below default reporting threshold" : `Among ${reportableCounts.length} displayed groups; ${formatPercent(smallestRow?.share)} of cohort`),
+    kpi("Smallest group", smallestRow ? `${smallestRow.group}: ${smallestRow.count.toLocaleString()}` : "—", smallestRow?.count < MIN_GROUP_SIZE_DEFAULT ? "Below default reporting threshold" : `Among ${reportableCounts.length} displayed groups; ${formatPercent(smallestRow?.share)} of cohort`),
     kpi("Selected-field missingness", formatPercent(overallMissing), invalid.valid ? "Canonical validation passed" : `${invalid.errors.length} validation issue(s)`)
   ].join("");
   $("#representation-chart").innerHTML = counts.map((row) => `<div class="bar-row"><span>${escapeHtml(row.group)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(1, row.share * 100)}%"></div></div><b>${formatPercent(row.share, 0)}</b></div>`).join("");
@@ -162,17 +162,17 @@ function renderMissingnessHeatmap(rows, fields) {
   const labels = Object.fromEntries(fields.map((field) => [field, field.replaceAll("_", " ")]));
   const lookup = new Map(rows.map((row) => [`${row.group}|${row.field}`, row]));
   const maxRate = Math.max(0.01, ...rows.map((row) => row.rate || 0));
-  const header = `<div class="heatmap-cell heatmap-corner">Population</div>${fields.map((field) => `<div class="heatmap-cell heatmap-header">${escapeHtml(labels[field])}</div>`).join("")}`;
+  const header = `<div class="heatmap-tile heatmap-corner">Population</div>${fields.map((field) => `<div class="heatmap-tile heatmap-header">${escapeHtml(labels[field])}</div>`).join("")}`;
   const body = groups.map((group) => {
     const n = lookup.get(`${group}|${fields[0]}`)?.n ?? 0;
-    const cells = fields.map((field) => {
+    const tiles = fields.map((field) => {
       const row = lookup.get(`${group}|${field}`);
       const intensity = row?.rate ? 0.12 + 0.88 * row.rate / maxRate : 0;
       const foreground = intensity > 0.56 ? "#fff" : "#102f2a";
       const background = row?.rate ? `rgba(158,59,45,${intensity.toFixed(2)})` : "#edf3f1";
-      return `<div class="heatmap-cell heatmap-value" style="background:${background};color:${foreground}" title="${escapeHtml(group)} — ${escapeHtml(labels[field])}: ${(row?.missing ?? 0).toLocaleString()} missing of ${(row?.n ?? 0).toLocaleString()} (${formatPercent(row?.rate)})"><b>${formatPercent(row?.rate)}</b></div>`;
+      return `<div class="heatmap-tile heatmap-value" style="background:${background};color:${foreground}" title="${escapeHtml(group)} — ${escapeHtml(labels[field])}: ${(row?.missing ?? 0).toLocaleString()} missing of ${(row?.n ?? 0).toLocaleString()} (${formatPercent(row?.rate)})"><b>${formatPercent(row?.rate)}</b></div>`;
     }).join("");
-    return `<div class="heatmap-cell heatmap-row-label"><b>${escapeHtml(group)}</b><small>n=${n.toLocaleString()}</small></div>${cells}`;
+    return `<div class="heatmap-tile heatmap-row-label"><b>${escapeHtml(group)}</b><small>n=${n.toLocaleString()}</small></div>${tiles}`;
   }).join("");
   $("#missingness-table").innerHTML = `<div class="heatmap" style="--heatmap-fields:${fields.length}">${header}${body}</div><div class="heatmap-legend"><span>0% missing</span><i></i><span>${formatPercent(maxRate)} or higher</span></div>`;
 }
@@ -209,7 +209,7 @@ function renderCareCharts(rows) {
 function refreshFairnessGroups() {
   if (!cohort.length) return;
   const field = currentGroupField("fairness");
-  const groups = groupCounts(cohort, field).filter((row) => row.group !== "Missing" && row.count >= MIN_CELL_DEFAULT);
+  const groups = groupCounts(cohort, field).filter((row) => row.group !== "Missing" && row.count >= MIN_GROUP_SIZE_DEFAULT);
   const existingReference = $("#reference-group").value;
   const existingComparison = $("#comparison-group").value;
   const options = groups.map((row) => `<option value="${escapeHtml(row.group)}">${escapeHtml(row.group)} (n=${row.count.toLocaleString()})</option>`).join("");
@@ -385,7 +385,7 @@ function renderModelCharts(reference, comparison, referenceName, comparisonName,
     { name: comparisonName, bins: calibrationBins(comparison, 10), className: "comparison" }
   ];
   const points = calibration.map((series) => {
-    const valid = series.bins.filter((bin) => bin.n >= MIN_CELL_DEFAULT && bin.meanPredicted != null && bin.observedRate != null);
+    const valid = series.bins.filter((bin) => bin.n >= MIN_GROUP_SIZE_DEFAULT && bin.meanPredicted != null && bin.observedRate != null);
     const coordinates = valid.map((bin) => `${left + bin.meanPredicted * plotWidth},${top + plotHeight - bin.observedRate * plotHeight}`).join(" ");
     const circles = valid.map((bin) => `<circle class="chart-point ${series.className}" cx="${left + bin.meanPredicted * plotWidth}" cy="${top + plotHeight - bin.observedRate * plotHeight}" r="5"><title>${escapeHtml(series.name)}: predicted ${formatPercent(bin.meanPredicted)}, observed ${formatPercent(bin.observedRate)}, n=${bin.n.toLocaleString()}</title></circle>`).join("");
     return `${coordinates ? `<polyline class="chart-line ${series.className}" points="${coordinates}"/>` : ""}${circles}`;
@@ -434,7 +434,7 @@ function currentAuditReport() {
 }
 
 function table(headers, rows, className = () => "") {
-  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="${className(row)}">${row.map((cell, index) => `<td class="${index >= 2 ? "numeric" : ""}">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="${className(row)}">${row.map((value, index) => `<td class="${index >= 2 ? "numeric" : ""}">${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function renderAll() {

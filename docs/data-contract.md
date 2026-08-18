@@ -63,7 +63,7 @@ specific CCDI Data Model and Metadata Submission Template version.
 
 ## Missingness
 
-Blank CSV values and JSON `null` values are treated as missing. The tool reports subgroup missingness and suppresses unstable cells below the configured minimum size.
+Blank CSV values and JSON `null` values are treated as missing. The tool reports subgroup missingness and suppresses unstable subgroup results below the configured minimum size.
 
 ## Current integration status
 
