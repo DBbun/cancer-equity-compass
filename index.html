@@ -6,7 +6,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta name="description" content="Synthetic-data toolkit for auditing childhood and AYA cancer data, care gaps, and prediction models.">
   <title>Childhood and AYA Cancer Equity Compass</title>
-  <link rel="stylesheet" href="styles.css?v=20260818-1">
+  <link rel="stylesheet" href="styles.css?v=20260818-2">
 </head>
 <body>
   <header class="hero">
@@ -51,7 +51,13 @@
     <section class="control-panel" aria-labelledby="generator-title">
       <div class="control-heading">
         <div><span class="module-number">01</span><h3 id="generator-title">Synthetic Cohort Generator</h3></div>
-        <p id="scenario-description"></p>
+        <div class="scenario-summary"><b>Selected scenario</b><p id="scenario-description"></p></div>
+      </div>
+      <p class="generator-intro">Create a reproducible, non-identifiable demonstration cohort representing patients diagnosed from childhood through age 39. Each generated record links demographic characteristics, cancer type and risk, treatment exposures, eligibility for care processes, completion of recommended care, follow-up, a simulated two-year outcome, and a deliberately imperfect prediction score.</p>
+      <div class="generator-explainer">
+        <article><b>Known ground truth</b><span>Each scenario injects a documented mechanism—such as differential missingness, lower completion of indicated care, or subgroup miscalibration—so the downstream auditors can be tested against a known expected signal.</span></article>
+        <article><b>Reproducible experiments</b><span>The same scenario, cohort size, and seed always produce the same records. Change only one setting at a time to compare how an audit responds while other assumptions remain stable.</span></article>
+        <article><b>Privacy-first demonstration</b><span>Every patient is simulated in the browser. No real individual, CCDI participant, protected health information, or controlled-access record is used or transmitted.</span></article>
       </div>
       <div class="controls">
         <label>Scenario<select id="scenario"></select></label>
@@ -64,6 +70,10 @@
         <button class="secondary" id="download-csv" disabled>Download synthetic CSV</button>
         <button class="secondary" id="download-json" disabled>Download synthetic JSON</button>
         <span>All computation remains in this browser tab.</span>
+      </div>
+      <div class="generator-guidance">
+        <b>How to use this module</b>
+        <ol><li>Select a scenario that represents the data, care, or model behavior to evaluate.</li><li>Choose a sample size and seed, then generate the cohort.</li><li>Use Sections 02–04 to determine whether the known signal is detected across populations.</li><li>Download synthetic CSV/JSON for reproducible testing, teaching, or integration work. Generated values are engineering demonstrations, not epidemiologic estimates.</li></ol>
       </div>
     </section>
 
@@ -110,6 +120,6 @@
   </main>
 
   <footer><div><b>Childhood and AYA Cancer Equity Compass</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=20260818-2"></script>
 </body>
 </html>

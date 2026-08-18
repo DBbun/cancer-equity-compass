@@ -121,31 +121,31 @@ function scenarioEffects(name, row) {
 export const SCENARIOS = {
   balanced: {
     label: "Balanced benchmark",
-    description: "No deliberately injected population-specific gap beyond ordinary sampling variation."
+    description: "Creates a benchmark cohort with shared data-completeness, care-process, outcome, and prediction mechanisms across populations. Small observed differences can still occur through sampling variation, making this the negative-control scenario for the auditors."
   },
   access_gap: {
     label: "Testing and treatment access gap",
-    description: "Injects lower testing, treatment receipt, and follow-up in selected race and ethnicity populations."
+    description: "Reduces the simulated probability of molecular testing, indicated treatment receipt, and follow-up completion for Black and Hispanic participants. Disease and eligibility logic remain active, allowing the Care-Gap Analyzer to test whether conditional process differences are detected."
   },
   missingness_gap: {
     label: "Differential missingness",
-    description: "Injects higher missingness in care-process fields for selected populations."
+    description: "Increases missing values in selected care-process fields for Black and Hispanic participants without treating missingness as a clinical outcome. This tests whether the Data Readiness Auditor detects population-specific information loss before fairness results are interpreted."
   },
   miscalibration: {
     label: "Subgroup miscalibration",
-    description: "Preserves outcome generation while shifting predicted risk downward for one sex population."
+    description: "Keeps the simulated outcome mechanism unchanged while shifting predicted risk downward for female participants. This creates subgroup underprediction and tests whether calibration and threshold metrics reveal a problem that overall discrimination can conceal."
   },
   intersectional: {
     label: "AYA intersectional care gap",
-    description: "Injects adherence, follow-up, outcome, and model-calibration gaps for female AYA participants."
+    description: "Combines lower adherence and follow-up, a higher simulated adverse-outcome probability, and prediction-score underestimation among female participants diagnosed at ages 15–39. This stress-tests intersectional analysis across age and sex."
   },
   survivorship_gap: {
     label: "AYA survivorship continuity gap",
-    description: "Injects lower follow-up, psychosocial screening, and survivorship-plan completion among participants diagnosed at ages 15-39."
+    description: "Reduces follow-up completion, psychosocial screening, survivorship care planning, and fertility-pathway completion for participants diagnosed at ages 15–39. This represents a synthetic transition and survivorship-continuity problem, not an estimate of real AYA care."
   },
   site_variation: {
     label: "Site readiness and care variation",
-    description: "Injects lower data completeness and selected care-process completion at one synthetic contributing site."
+    description: "Concentrates greater missingness and lower completion of selected care processes at Synthetic Site E. This tests whether a multi-site readiness review can distinguish a contributing-site data-quality signal from patient-population differences."
   }
 };
 

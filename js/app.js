@@ -1,4 +1,4 @@
-import { generateCohort, SCENARIOS } from "./synthetic.js";
+import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-2";
 import {
   MIN_CELL_DEFAULT,
   performance,
