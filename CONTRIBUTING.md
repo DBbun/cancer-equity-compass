@@ -1,6 +1,6 @@
 # Contributing
 
-The Compass is an early research prototype. Contributions should preserve its
+The Auditor is an early research prototype. Contributions should preserve its
 privacy-first, browser-only default and its distinction between a review signal
 and a causal or clinical conclusion.
 
@@ -20,4 +20,3 @@ Describe the intended research use, tests performed, and any change to the data
 contract. Changes to metrics must include a test and a plain-language definition.
 Never commit participant-level or controlled-access data, credentials, access
 tokens, or derived files that could enable re-identification.
-

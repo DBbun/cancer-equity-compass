@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta name="description" content="Synthetic-data toolkit for auditing childhood and AYA cancer data, care gaps, and prediction models.">
-  <title>Childhood and AYA Cancer Equity Compass</title>
+  <title>Sub-population Fairness &amp; Readiness Auditor for CCDI</title>
   <link rel="stylesheet" href="styles.css?v=20260818-4">
 </head>
 <body>
@@ -18,14 +18,14 @@
     </div>
     <div class="hero-grid">
       <div>
-        <h1>Childhood and AYA<br><span>Cancer Equity Compass</span></h1>
+        <h1>Sub-population Fairness<br><span>&amp; Readiness Auditor for CCDI</span></h1>
         <p class="lede">Find where data, care pathways, and prediction models may fail patient populations—before they influence research or care.</p>
         <div class="hero-actions">
           <button class="primary" data-scroll="workspace">Open the working prototype</button>
           <a class="secondary" href="docs/data-contract.md">Review the data contract</a>
         </div>
       </div>
-      <div class="compass-card" aria-label="Five Compass modules">
+      <div class="compass-card" aria-label="Five Auditor modules">
         <div class="radar" aria-hidden="true"><div class="needle"></div><div class="hub"></div></div>
         <ol>
           <li><b>Generate</b><span>Known synthetic ground truth</span></li>
@@ -48,7 +48,7 @@
       <div class="status" id="dataset-status">No cohort loaded</div>
     </section>
 
-    <nav class="tabs" aria-label="Compass modules">
+    <nav class="tabs" aria-label="Auditor modules">
       <button class="tab active" data-tab="generator">01 Synthetic cohort</button>
       <button class="tab" data-tab="readiness">02 Data readiness</button>
       <button class="tab" data-tab="care">03 Care gaps</button>
@@ -139,16 +139,59 @@
     </section>
 
     <section class="tab-panel" id="integration" aria-labelledby="integration-title">
-      <div class="panel-title"><div><div class="eyebrow">CCDI Integration Layer</div><h2 id="integration-title">A documented adapter boundary—not an integration claim.</h2></div></div>
-      <div class="two-column">
-        <article class="card"><h3>Current canonical contract</h3><div id="validation-results"></div><p>The prototype validates required columns, ranges, binary outcomes, and identifier uniqueness. It accepts CSV and exports CSV/JSON.</p><p><button id="download-ccdi-bundle" class="secondary">Download demonstration node bundle</button></p><p><button id="download-audit-report" class="secondary">Download aggregate audit report</button></p><p class="formula">The audit report contains aggregate measures and configuration metadata, not participant-level rows.</p><a href="data/canonical-schema.json">Machine-readable JSON Schema</a></article>
-        <article class="card"><h3>Milestone adaptation path</h3><ol class="steps"><li>Confirm CCDI target resource and versioned model.</li><li>Map controlled terminology and provenance.</li><li>Add multi-table and longitudinal relationships.</li><li>Package validation rules and example manifests.</li><li>Test with CCDI collaborators and approved data.</li></ol></article>
+      <div class="panel-title"><div><div class="eyebrow">CCDI Integration Layer</div><h2 id="integration-title">From a validated local cohort to a documented CCDI adaptation package.</h2></div></div>
+      <p class="integration-lede">This panel explains what the Auditor can export today, what each file contains, and how those artifacts could support collaborative mapping to a selected CCDI resource. It demonstrates an adapter boundary; it does not claim that NCI/CCDI has reviewed, endorsed, or integrated the current schema.</p>
+
+      <div class="integration-status-grid">
+        <article><span>Available now</span><b>Canonical validation</b><small>Required fields, values, identifiers, and record-level structure.</small></article>
+        <article><span>Available now</span><b>Reusable exports</b><small>Synthetic node bundle, aggregate audit, and machine-readable schema.</small></article>
+        <article><span>Milestone work</span><b>CCDI-specific mapping</b><small>Terminology, provenance, longitudinal relationships, and manifests.</small></article>
+        <article><span>Requires authorization</span><b>Evaluation with CCDI data</b><small>Testing only in an approved environment with applicable agreements.</small></article>
       </div>
-      <div class="integration-note"><b>Integration status:</b> DBbun demonstration schema informed by public CCDI descriptions. Not yet reviewed, endorsed, or integrated by NCI/CCDI.</div>
+
+      <div class="integration-grid">
+        <article class="card integration-contract">
+          <div class="eyebrow">1. Validate the incoming cohort</div><h3>Current canonical contract</h3><div id="validation-results"></div>
+          <p>The Auditor checks 22 required fields, accepted value ranges, binary outcomes, unique participant identifiers, and the minimum structure needed by the five modules. Canonical CSV and JSON provide a stable intermediate format between a source system and a future CCDI-specific adapter.</p>
+          <p><a href="docs/data-contract.md">Read the human-readable data contract</a><br><a href="data/canonical-schema.json">Open the machine-readable JSON Schema</a></p>
+        </article>
+        <article class="card integration-downloads">
+          <div class="eyebrow">2. Export reviewable artifacts</div><h3>What the downloadable files contain</h3>
+          <div class="file-definition"><b>Demonstration node bundle</b><p>A JSON package that separates synthetic study, participant, diagnosis, treatment, and survival nodes. Identifiers preserve relationships across nodes so mapping logic can be inspected and tested without exposing real patients.</p><button id="download-ccdi-bundle" class="secondary">Download demonstration node bundle</button></div>
+          <div class="file-definition"><b>Aggregate audit report</b><p>A disclosure-conscious JSON report containing cohort configuration, readiness results, care-process rates, model performance, fairness measures, and threshold settings. It contains aggregate findings and metadata—not participant-level rows.</p><button id="download-audit-report" class="secondary">Download aggregate audit report</button></div>
+          <div class="file-definition"><b>Canonical schema</b><p>The JSON Schema defines field names, data types, required columns, and accepted categories. It can support automated validation in a data-submission or analysis pipeline.</p><a href="data/canonical-schema.json">View canonical-schema.json</a></div>
+        </article>
+      </div>
+
+      <article class="card integration-outcomes">
+        <div class="eyebrow">3. What CCDI adaptation could achieve</div><h3>A reusable quality and equity checkpoint before downstream analysis</h3>
+        <div class="outcome-grid">
+          <div><b>Earlier data-quality detection</b><p>Identify missingness, sparse subgroups, invalid codes, and incomplete follow-up before a dataset is reused or a model is fitted.</p></div>
+          <div><b>Comparable care-process measures</b><p>Apply explicit eligibility and upstream denominators so testing, treatment, adherence, survivorship, and fertility pathways are interpreted consistently.</p></div>
+          <div><b>Model-governance evidence</b><p>Package subgroup discrimination, calibration, error rates, threshold behavior, and confidence intervals in a reproducible aggregate report.</p></div>
+          <div><b>Versioned interoperability work</b><p>Maintain traceable mappings from source fields to controlled terminology, CCDI structures, and—where applicable—mCODE or pediatric FHIR profiles.</p></div>
+          <div><b>Privacy-conscious collaboration</b><p>Use synthetic examples and aggregate outputs for review while keeping controlled participant data inside authorized environments.</p></div>
+          <div><b>Repeatable acceptance testing</b><p>Run known-ground-truth scenarios and automated checks whenever a schema, adapter, dataset version, or analytical model changes.</p></div>
+        </div>
+      </article>
+
+      <article class="card integration-roadmap">
+        <div class="eyebrow">4. Proposed milestone adaptation path</div><h3>Work required for a selected CCDI target</h3>
+        <ol class="roadmap-steps">
+          <li><b>Select the destination.</b><span>Confirm the CCDI resource, submission template, data-model version, and intended analytical use with NCI/CCDI.</span></li>
+          <li><b>Profile and map.</b><span>Create a field-level crosswalk covering terminology, identifiers, provenance, units, missing-value semantics, and permitted transformations.</span></li>
+          <li><b>Represent relationships.</b><span>Add required multi-table and longitudinal links among participants, diagnoses, treatments, specimens, outcomes, and follow-up events.</span></li>
+          <li><b>Validate and document.</b><span>Package validation rules, example manifests, transformation logs, data dictionaries, version history, tests, and disclosure controls.</span></li>
+          <li><b>Evaluate safely.</b><span>Test the adapter and audits with approved data in an authorized environment; compare expected and observed findings with CCDI collaborators.</span></li>
+          <li><b>Prepare for reuse.</b><span>Deliver documented code, synthetic fixtures, schemas, model cards, aggregate reports, and deployment instructions for iterative CCDI review.</span></li>
+        </ol>
+      </article>
+
+      <div class="integration-note"><b>Integration status:</b> The current DBbun schema and node bundle are demonstrations informed by public CCDI descriptions. They are not official CCDI templates and have not yet been reviewed, endorsed, or integrated by NCI/CCDI. No controlled-access data should be uploaded to the public demonstration.</div>
     </section>
   </main>
 
-  <footer><div><b>Childhood and AYA Cancer Equity Compass</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
+  <footer><div><b>Sub-population Fairness &amp; Readiness Auditor for CCDI</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
   <script type="module" src="js/app.js?v=20260818-5"></script>
 </body>
 </html>

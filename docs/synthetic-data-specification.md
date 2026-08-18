@@ -30,7 +30,7 @@ model problems. It does not estimate the prevalence of real disparities.
 
 This order separates clinical need, care received, outcome generation, model
 behavior, and documentation quality. That separation is essential for testing
-whether the Compass uses correct denominators and identifies the intended signal.
+whether the Auditor uses correct denominators and identifies the intended signal.
 
 ## Current scenarios
 

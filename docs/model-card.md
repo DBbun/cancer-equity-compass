@@ -6,7 +6,7 @@ Synthetic two-year adverse-outcome risk score generated from known simulated rel
 
 ## Purpose
 
-Demonstrate that the Compass can detect injected representation, missingness, care-access, calibration, and threshold-performance gaps.
+Demonstrate that the Auditor can detect injected representation, missingness, care-access, calibration, and threshold-performance gaps.
 
 ## Not valid for
 

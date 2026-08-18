@@ -48,7 +48,7 @@ export function buildAuditReport(rows, options = {}) {
 
   return {
     report: {
-      title: "Childhood and AYA Cancer Equity Compass aggregate audit report",
+      title: "Sub-population Fairness & Readiness Auditor for CCDI aggregate audit report",
       specificationVersion: "0.1.0",
       generatedAt,
       disclosureControl: {

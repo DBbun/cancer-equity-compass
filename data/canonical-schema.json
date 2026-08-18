@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Cancer Equity Compass canonical participant record",
+  "title": "Sub-population Fairness & Readiness Auditor canonical participant record",
   "type": "object",
   "required": [
     "participant_id",

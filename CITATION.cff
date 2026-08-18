@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If this software supports your work, please cite it using this metadata."
-title: "Childhood and AYA Cancer Equity Compass"
+title: "Sub-population Fairness & Readiness Auditor for CCDI"
 type: software
 version: 0.1.0
 date-released: 2026-08-17
@@ -20,4 +20,3 @@ keywords:
   - health equity
   - model fairness
   - synthetic data
-

@@ -1,10 +1,10 @@
 # Evidence-to-variable matrix
 
 This matrix is based on direct text extraction from the local publications listed
-below. It distinguishes reported evidence from the Compass's current synthetic
+below. It distinguishes reported evidence from the Auditor's current synthetic
 engineering parameters. No participant-level source data were used.
 
-| Source | Population and design | Reported variables or results | Compass use | Guardrail |
+| Source | Population and design | Reported variables or results | Auditor use | Guardrail |
 |---|---|---|---|---|
 | Kartoun et al., *Scientific Reports* 2022, plus supplement | CHARGE-AF and PCE evaluated in three cohorts covering millions of records | Subpopulation discrimination, calibration, standardized hazard ratios, statistical parity; important heterogeneity by age, sex, and disease | Preserve separate ranking, calibration, threshold, and population audit layers; require intersectional subgroup evaluation | Cardiovascular thresholds and observed gaps are not transferred to cancer |
 | Kagamanov et al., 2021 | Retrospective Ontario cohort of 1,574 five-year AYA survivors diagnosed at 15-20.9 years; mean 9.2 years of follow-up | Specialized survivor, general cancer, and family-physician care models; guideline-eligible cardiomyopathy and breast surveillance; adherence transitions | `care_model`, surveillance eligibility, follow-up completion, and time since diagnosis | Reported surveillance rates describe a specific historical Canadian cohort, not a universal baseline |

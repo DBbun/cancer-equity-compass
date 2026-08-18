@@ -1,6 +1,6 @@
 # Canonical data contract
 
-The Compass accepts one row per participant for the initial demonstration workflow. Longitudinal and multi-table CCDI adapters are planned as a later integration layer.
+The Auditor accepts one row per participant for the initial demonstration workflow. Longitudinal and multi-table CCDI adapters are planned as a later integration layer.
 
 ## Required fields
 

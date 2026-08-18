@@ -1,4 +1,4 @@
-# Childhood and AYA Cancer Equity Compass
+# Sub-population Fairness & Readiness Auditor for CCDI
 
 A privacy-first, browser-based toolkit for evaluating whether childhood and adolescent and young adult (AYA) cancer datasets, care pathways, and prediction models work consistently across patient populations.
 
@@ -117,7 +117,7 @@ in cardiovascular risk models](https://doi.org/10.1038/s41598-022-16615-3).
 That publication provides the methodological starting point for examining
 performance and fairness heterogeneity across clinically relevant
 subpopulations rather than relying only on pooled model performance. The
-Cancer Equity Compass adapts that measurement philosophy to synthetic
+The Auditor adapts that measurement philosophy to synthetic
 childhood and AYA cancer demonstrations while adding data-readiness,
 eligibility-conditioned care-pathway, survivorship, and CCDI adaptation
 modules. The current synthetic risk model is not a cancer-specific clinical
@@ -141,7 +141,7 @@ includes:
 
 The evidence-to-variable matrix in
 [`docs/literature-topic-map.md`](docs/literature-topic-map.md) records source
-populations, variables, intended Compass use, and applicability guardrails.
+populations, variables, intended Auditor use, and applicability guardrails.
 
 ## License
 

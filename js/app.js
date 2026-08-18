@@ -174,7 +174,7 @@ function renderMissingnessHeatmap(rows, fields) {
     }).join("");
     return `<div class="heatmap-cell heatmap-row-label"><b>${escapeHtml(group)}</b><small>n=${n.toLocaleString()}</small></div>${cells}`;
   }).join("");
-  $("#missingness-table").innerHTML = `<div class="heatmap" style="grid-template-columns:minmax(150px,1.25fr) repeat(${fields.length},minmax(82px,1fr))">${header}${body}</div><div class="heatmap-legend"><span>0% missing</span><i></i><span>${formatPercent(maxRate)} or higher</span></div>`;
+  $("#missingness-table").innerHTML = `<div class="heatmap" style="--heatmap-fields:${fields.length}">${header}${body}</div><div class="heatmap-legend"><span>0% missing</span><i></i><span>${formatPercent(maxRate)} or higher</span></div>`;
 }
 
 function renderCareCharts(rows) {

@@ -56,9 +56,9 @@ export function toCcdiDemonstrationBundle(rows, { studyId = "SYN-COMPASS-2026" }
       adapter: "DBbun CCDI demonstration adapter",
       adapter_version: "0.2.0",
       status: "Not an official CCDI submission package",
-      generated_from: "Cancer Equity Compass canonical participant records"
+      generated_from: "Sub-population Fairness & Readiness Auditor canonical participant records"
     },
-    study: [{ study_id: studyId, study_name: "Synthetic Cancer Equity Compass Demonstration", data_access: "Open synthetic data" }],
+    study: [{ study_id: studyId, study_name: "Synthetic CCDI Sub-population Auditor Demonstration", data_access: "Open synthetic data" }],
     participant: rows.map((row) => ({
       participant_id: row.participant_id,
       study_id: studyId,
