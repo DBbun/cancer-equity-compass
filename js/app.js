@@ -1,4 +1,4 @@
-import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-3";
+import { generateCohort, SCENARIOS } from "./synthetic.js?v=20260818-4";
 import {
   MIN_CELL_DEFAULT,
   performance,
@@ -8,8 +8,12 @@ import {
   careRates,
   groupPerformance,
   riskHistogram,
-  calibrationBins
-} from "./metrics.js";
+  calibrationBins,
+  welchTTest,
+  mannWhitneyTest,
+  chiSquareTest,
+  wilsonInterval
+} from "./metrics.js?v=20260818-2";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows, REQUIRED_FIELDS } from "./adapter.js";
 import { buildAuditReport } from "./report.js";
 
@@ -20,6 +24,11 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const formatPercent = (value, digits = 1) => value == null ? "—" : `${(value * 100).toFixed(digits)}%`;
 const formatNumber = (value, digits = 2) => value == null || Number.isNaN(value) ? "—" : Number(value).toFixed(digits);
+const formatP = (value) => value == null ? "—" : value < 0.001 ? "<0.001" : value.toFixed(3);
+const formatRateInterval = (rate, successes, total) => {
+  const [lower, upper] = wilsonInterval(successes, total);
+  return `${formatPercent(rate)} [${formatPercent(lower)}–${formatPercent(upper)}]`;
+};
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 
 function download(name, content, type) {
@@ -38,6 +47,70 @@ function kpi(label, value, detail) {
 function currentGroupField(panel = "readiness") {
   if (panel === "fairness") return $("#fairness-field").value;
   return $(`#${panel} .group-field`).value;
+}
+
+function quantile(values, probability) {
+  const sorted = values.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const position = (sorted.length - 1) * probability;
+  const lower = Math.floor(position); const upper = Math.ceil(position);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
+
+function describeContinuous(rows, field, percent = false) {
+  const values = rows.map((row) => Number(row[field])).filter(Number.isFinite);
+  if (!values.length) return "—";
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const sd = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / Math.max(1, values.length - 1));
+  const scale = percent ? 100 : 1; const suffix = percent ? "%" : "";
+  return `${(average * scale).toFixed(1)}${suffix} (${(sd * scale).toFixed(1)})<br><small>median ${(quantile(values, .5) * scale).toFixed(1)}${suffix} [${(quantile(values, .25) * scale).toFixed(1)}–${(quantile(values, .75) * scale).toFixed(1)}]</small>`;
+}
+
+function describeCategorical(rows, field) {
+  const counts = new Map();
+  for (const row of rows) { const value = String(row[field] ?? "Missing"); counts.set(value, (counts.get(value) || 0) + 1); }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => `${escapeHtml(value)}: ${count.toLocaleString()} (${formatPercent(count / rows.length)})`).join("<br>");
+}
+
+function refreshTable1Groups() {
+  if (!cohort.length) return;
+  const field = $("#table1-field").value;
+  const groups = groupCounts(cohort, field).filter((row) => row.group !== "Missing");
+  const previousA = $("#table1-reference").value; const previousB = $("#table1-comparison").value;
+  const options = groups.map((row) => `<option value="${escapeHtml(row.group)}">${escapeHtml(row.group)} (n=${row.count.toLocaleString()})</option>`).join("");
+  $("#table1-reference").innerHTML = options; $("#table1-comparison").innerHTML = options;
+  $("#table1-reference").value = groups.some((row) => row.group === previousA) ? previousA : groups[0]?.group ?? "";
+  $("#table1-comparison").value = groups.some((row) => row.group === previousB) ? previousB : groups[1]?.group ?? groups[0]?.group ?? "";
+}
+
+function renderTable1() {
+  if (!cohort.length) return;
+  const field = $("#table1-field").value; const groupAName = $("#table1-reference").value; const groupBName = $("#table1-comparison").value;
+  const groupA = cohort.filter((row) => String(row[field] ?? "Missing") === groupAName); const groupB = cohort.filter((row) => String(row[field] ?? "Missing") === groupBName);
+  if (!groupA.length || !groupB.length) return;
+  const continuous = [
+    ["Age at diagnosis, years", "age_at_diagnosis", false],
+    ["Years since diagnosis", "years_since_diagnosis", false],
+    ["Transition readiness", "transition_readiness", true],
+    ["Predicted two-year risk", "predicted_risk_2y", true]
+  ];
+  const categorical = [
+    ["Sex", "sex"], ["Cancer type", "cancer_type"], ["Cancer risk group", "risk_group"], ["Disease stage", "disease_stage"],
+    ["Care model", "care_model"], ["Treatment received", "treatment_received"], ["Treatment adherent", "treatment_adherent"],
+    ["Follow-up complete", "followup_complete"], ["Two-year adverse outcome", "outcome_2y"]
+  ];
+  const rows = [];
+  for (const [label, variable, percent] of continuous) {
+    const firstValues = groupA.map((row) => row[variable]); const secondValues = groupB.map((row) => row[variable]);
+    const t = welchTTest(firstValues, secondValues); const u = mannWhitneyTest(firstValues, secondValues);
+    rows.push([label, describeContinuous(groupA, variable, percent), describeContinuous(groupB, variable, percent), `Welch t=${formatNumber(t.statistic)}; p=${formatP(t.pValue)}<br><small>Mann-Whitney U=${formatNumber(u.statistic, 0)}; p=${formatP(u.pValue)}</small>`]);
+  }
+  for (const [label, variable] of categorical) {
+    const result = chiSquareTest(groupA, groupB, variable);
+    rows.push([label, describeCategorical(groupA, variable), describeCategorical(groupB, variable), `χ²=${formatNumber(result.statistic)}; p=${formatP(result.pValue)}`]);
+  }
+  $("#table1-summary").innerHTML = `<div class="table-one-summary"><b>Comparison:</b> ${escapeHtml(groupAName)} (n=${groupA.length.toLocaleString()}) versus ${escapeHtml(groupBName)} (n=${groupB.length.toLocaleString()}). <b>Scope:</b> demographics, cancer characteristics, care, and outcomes. Tests are descriptive checks of the generated data-generating process.</div>`;
+  $("#table1").innerHTML = `<table><thead><tr><th>Characteristic / outcome</th><th>${escapeHtml(groupAName)}<br><small>n=${groupA.length.toLocaleString()}</small></th><th>${escapeHtml(groupBName)}<br><small>n=${groupB.length.toLocaleString()}</small></th><th>Statistical comparison</th></tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell, index) => `<td class="${index > 0 ? "numeric" : ""}">${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function updateScenarioDescription() {
@@ -59,17 +132,22 @@ function renderReadiness() {
   const counts = groupCounts(cohort, field);
   const missingFields = ["race_ethnicity", "molecular_test_completed", "treatment_adherent", "followup_complete", "psychosocial_screen_completed", "survivorship_plan_completed"];
   const missingness = missingnessByGroup(cohort, field, missingFields);
-  const smallest = Math.min(...counts.filter((row) => row.group !== "Missing").map((row) => row.count));
+  const reportableCounts = counts.filter((row) => row.group !== "Missing");
+  const smallestRow = [...reportableCounts].sort((a, b) => a.count - b.count)[0];
   const invalid = validateRows(cohort);
   const overallMissing = missingness.reduce((sum, row) => sum + row.missing, 0) / Math.max(1, missingness.reduce((sum, row) => sum + row.n, 0));
   $("#readiness-kpis").innerHTML = [
     kpi("Participants", cohort.length.toLocaleString(), "Rows in the active cohort"),
     kpi("Population groups", String(counts.length), field.replaceAll("_", " ")),
-    kpi("Smallest group", smallest.toLocaleString(), smallest < MIN_CELL_DEFAULT ? "Below default reporting threshold" : "Above default reporting threshold"),
+    kpi("Smallest group", smallestRow ? `${smallestRow.group}: ${smallestRow.count.toLocaleString()}` : "—", smallestRow?.count < MIN_CELL_DEFAULT ? "Below default reporting threshold" : `Among ${reportableCounts.length} displayed groups; ${formatPercent(smallestRow?.share)} of cohort`),
     kpi("Selected-field missingness", formatPercent(overallMissing), invalid.valid ? "Canonical validation passed" : `${invalid.errors.length} validation issue(s)`)
   ].join("");
   $("#representation-chart").innerHTML = counts.map((row) => `<div class="bar-row"><span>${escapeHtml(row.group)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(1, row.share * 100)}%"></div></div><b>${formatPercent(row.share, 0)}</b></div>`).join("");
   renderMissingnessHeatmap(missingness, missingFields);
+  const largest = reportableCounts[0];
+  $("#representation-explanation").innerHTML = `<b>What this means</b><p>${escapeHtml(largest.group)} is the largest displayed group (${largest.count.toLocaleString()}, ${formatPercent(largest.share)}), while ${escapeHtml(smallestRow.group)} is the smallest (${smallestRow.count.toLocaleString()}, ${formatPercent(smallestRow.share)}). Large size imbalances can make pooled performance look stable while estimates for smaller groups remain uncertain.</p><b>Possible actions</b><p>Review recruitment and contribution by site, predefine minimum subgroup sizes, report confidence intervals, combine categories only with scientific justification, and avoid interpreting suppressed or sparse intersections.</p>`;
+  const worstMissing = [...missingness].sort((a, b) => b.rate - a.rate)[0];
+  $("#missingness-explanation").innerHTML = `<b>What this means</b><p>The highest missingness is ${formatPercent(worstMissing.rate)} for ${escapeHtml(worstMissing.field.replaceAll("_", " "))} in ${escapeHtml(worstMissing.group)} (${worstMissing.missing.toLocaleString()} of ${worstMissing.n.toLocaleString()}). Missingness can bias care and fairness estimates when it differs by population or relates to outcomes.</p><b>Possible actions</b><p>Trace missing values to source systems and workflow stages, compare complete-case and missingness-aware analyses, add explicit unknown categories where appropriate, and avoid treating undocumented care as care not received.</p>`;
 }
 
 function renderCare() {
@@ -123,6 +201,9 @@ function renderCareCharts(rows) {
   const cascadeMeasures = ["Treatment receipt", "Treatment adherence", "Follow-up completion", "Survivorship care plan"];
   const cascadeRows = cascadeMeasures.map((measure) => ({ label: measure, values: groups.map((group) => valid.find((row) => row.group === group && row.measure === measure)?.rate ?? null) }));
   $("#care-cascade-chart").innerHTML = lineCategoryChart(cascadeRows, groups, colors);
+  $("#care-rate-explanation").innerHTML = `<b>What this means</b><p>Each bar uses only participants eligible for that care process. Hovering shows the numerator, denominator, rate, and 95% confidence interval. The chart identifies where completion differs, but it does not establish why.</p><b>Possible actions</b><p>Audit eligibility rules, referral documentation, insurance and language support, and site workflows. Confirm that lower completion is not caused by coding differences or contraindications before designing an intervention.</p>`;
+  $("#care-gap-explanation").innerHTML = `<b>What this means</b><p>${worst ? `${escapeHtml(worst.group)} has the largest negative signal: ${Math.abs(worst.gap * 100).toFixed(1)} percentage points lower ${escapeHtml(worst.measure.toLowerCase())} than ${escapeHtml(reference)}.` : "No reportable gap is available."} Zero is parity with the selected reference; direction and clinical need must be considered together.</p><b>Possible actions</b><p>Prioritize the largest clinically meaningful gaps, reproduce them within diagnosis and risk strata, calculate adjusted estimates, and engage affected patients and care teams before attributing causality.</p>`;
+  $("#care-cascade-explanation").innerHTML = `<b>What this means</b><p>The pathway view shows where completion falls between treatment receipt, adherence, follow-up, and survivorship planning. Diverging lines identify populations that may leave the pathway at different stages.</p><b>Possible actions</b><p>Target the earliest avoidable drop-off, add navigation or reminder support, improve transition handoffs, and monitor whether interventions close the gap without reducing appropriate care for another population.</p>`;
 }
 
 function refreshFairnessGroups() {
@@ -157,6 +238,7 @@ function renderFairness() {
   const audit = directionalFairness(reference, comparison, threshold);
   renderModelCharts(reference, comparison, referenceName, comparisonName, threshold);
   renderAgeAndThresholdCharts(reference, comparison, referenceName, comparisonName);
+  renderFairnessMetricChart(audit, referenceName, comparisonName);
   const definitions = [
     ["Statistical parity difference", audit.statisticalParityDifference, "Difference in the share classified above threshold"],
     ["Sensitivity difference", audit.truePositiveRateDifference, "Difference in detected cases among participants with the outcome"],
@@ -171,12 +253,38 @@ function renderFairness() {
   $("#fairness-metrics").innerHTML = definitions.map(([label, value, note, kind]) => `<div class="metric"><span>${escapeHtml(label)}</span><b>${kind === "ratio" ? `${formatNumber(value)}×` : kind === "number" ? formatNumber(value) : formatPercent(value)}</b><small>${escapeHtml(note)}</small></div>`).join("");
   const groups = groupPerformance(cohort, field, threshold);
   $("#performance-table").innerHTML = table(
-    ["Population", "N", "AUC", "O/E", "Sensitivity", "Specificity", "FNR", "Flagged"],
+    ["Population", "N", "AUC", "O/E", "Sensitivity [95% CI]", "Specificity [95% CI]", "FNR [95% CI]", "Flagged [95% CI]"],
     groups.map((row) => row.suppressed
       ? [row.group, row.count.toLocaleString(), "Suppressed", "—", "—", "—", "—", "—"]
-      : [row.group, row.count.toLocaleString(), formatNumber(row.metrics.auc), formatNumber(row.metrics.calibrationRatio), formatPercent(row.metrics.sensitivity), formatPercent(row.metrics.specificity), formatPercent(row.metrics.fnr), formatPercent(row.metrics.selectionRate)]),
+      : [row.group, row.count.toLocaleString(), formatNumber(row.metrics.auc), formatNumber(row.metrics.calibrationRatio), formatRateInterval(row.metrics.sensitivity, row.metrics.confusion.tp, row.metrics.confusion.tp + row.metrics.confusion.fn), formatRateInterval(row.metrics.specificity, row.metrics.confusion.tn, row.metrics.confusion.tn + row.metrics.confusion.fp), formatRateInterval(row.metrics.fnr, row.metrics.confusion.fn, row.metrics.confusion.fn + row.metrics.confusion.tp), formatRateInterval(row.metrics.selectionRate, row.metrics.confusion.tp + row.metrics.confusion.fp, row.metrics.n)]),
     (row) => row[2] === "Suppressed" ? "suppressed" : ""
   );
+}
+
+function differenceInterval(firstRate, firstN, secondRate, secondN) {
+  if (firstRate == null || secondRate == null || !firstN || !secondN) return [null, null];
+  const difference = secondRate - firstRate;
+  const se = Math.sqrt(firstRate * (1 - firstRate) / firstN + secondRate * (1 - secondRate) / secondN);
+  return [difference - 1.96 * se, difference + 1.96 * se];
+}
+
+function renderFairnessMetricChart(audit, referenceName, comparisonName) {
+  const r = audit.reference; const c = audit.comparison;
+  const measures = [
+    { label: "Statistical parity difference", value: audit.statisticalParityDifference, ci: differenceInterval(r.selectionRate, r.n, c.selectionRate, c.n), meaning: "difference in model-positive rates" },
+    { label: "True-positive-rate difference", value: audit.truePositiveRateDifference, ci: differenceInterval(r.sensitivity, r.confusion.tp + r.confusion.fn, c.sensitivity, c.confusion.tp + c.confusion.fn), meaning: "difference in sensitivity among outcome-positive records" },
+    { label: "True-negative-rate difference", value: audit.trueNegativeRateDifference, ci: differenceInterval(r.specificity, r.confusion.tn + r.confusion.fp, c.specificity, c.confusion.tn + c.confusion.fp), meaning: "difference in specificity among outcome-negative records" },
+    { label: "False-negative-rate difference", value: audit.falseNegativeRateDifference, ci: differenceInterval(r.fnr, r.confusion.tp + r.confusion.fn, c.fnr, c.confusion.tp + c.confusion.fn), meaning: "difference in missed-outcome rates" },
+    { label: "False-positive-rate difference", value: audit.falsePositiveRateDifference, ci: differenceInterval(r.fpr, r.confusion.tn + r.confusion.fp, c.fpr, c.confusion.tn + c.confusion.fp), meaning: "difference in unnecessary model-positive classifications" }
+  ];
+  const width = 860; const height = 330; const labelWidth = 260; const center = 560; const scale = 850; const top = 28; const rowHeight = 52;
+  const marks = measures.map((measure, index) => {
+    const y = top + index * rowHeight; const x = center + measure.value * scale; const low = center + measure.ci[0] * scale; const high = center + measure.ci[1] * scale;
+    return `${svgText(labelWidth - 8, y + 8, measure.label, "chart-label", "end")}<line x1="${low}" y1="${y}" x2="${high}" y2="${y}" stroke="#102f2a" stroke-width="2"/><line x1="${low}" y1="${y - 5}" x2="${low}" y2="${y + 5}" stroke="#102f2a"/><line x1="${high}" y1="${y - 5}" x2="${high}" y2="${y + 5}" stroke="#102f2a"/><circle cx="${x}" cy="${y}" r="6" fill="${measure.value < 0 ? "#9e3b2d" : "#2e7d78"}"><title>${escapeHtml(measure.label)}: ${(measure.value * 100).toFixed(1)} pp; 95% CI ${(measure.ci[0] * 100).toFixed(1)} to ${(measure.ci[1] * 100).toFixed(1)} pp; ${escapeHtml(measure.meaning)}</title></circle>`;
+  }).join("");
+  $("#fairness-metric-chart").innerHTML = `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fairness differences with 95 percent confidence intervals"><line x1="${center}" y1="5" x2="${center}" y2="${height - 42}" class="threshold-line"/>${marks}${svgText(center, height - 22, "0 percentage points (parity)")}</svg>`;
+  const largest = [...measures].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0];
+  $("#fairness-metric-explanation").innerHTML = `<b>What this means</b><p>Values are ${escapeHtml(comparisonName)} minus ${escapeHtml(referenceName)}. The largest absolute difference is ${escapeHtml(largest.label.toLowerCase())}: ${(largest.value * 100).toFixed(1)} percentage points (95% CI ${(largest.ci[0] * 100).toFixed(1)} to ${(largest.ci[1] * 100).toFixed(1)}). An interval crossing zero indicates that sampling uncertainty includes no difference.</p><b>Possible actions</b><p>Do not optimize statistical parity alone. Review sensitivity, true-negative rate, calibration, clinical consequences, and eligibility together; test multiple thresholds; and investigate whether predictors, labels, missingness, or care access create the observed pattern.</p>`;
 }
 
 function svgText(x, y, value, className = "chart-label", anchor = "middle") {
@@ -240,6 +348,10 @@ function renderAgeAndThresholdCharts(reference, comparison, referenceName, compa
     return { label: `${Math.round(threshold * 100)}%`, values: [audit.truePositiveRateDifference, audit.falseNegativeRateDifference, audit.statisticalParityDifference] };
   });
   $("#threshold-analysis-chart").innerHTML = signedLineChart(thresholdRows, ["Sensitivity gap", "False-negative gap", "Selection-rate gap"], ["#2e7d78", "#9e3b2d", "#f46b45"], referenceName, comparisonName);
+  const agePerformances = ageGroups.map((age) => ({ age, metrics: performance(cohort.filter((row) => row.age_group === age), Number($("#threshold").value)) }));
+  const orderedAges = [...agePerformances].sort((a, b) => (b.metrics.selectionRate ?? 0) - (a.metrics.selectionRate ?? 0));
+  $("#age-explanation").innerHTML = `<b>What this means</b><p>Model-positive rates range from ${formatPercent(orderedAges.at(-1)?.metrics.selectionRate)} in ages ${escapeHtml(orderedAges.at(-1)?.age)} to ${formatPercent(orderedAges[0]?.metrics.selectionRate)} in ages ${escapeHtml(orderedAges[0]?.age)}. Differences may reflect disease mix, treatment, model behavior, or injected scenario effects.</p><b>Possible actions</b><p>Evaluate pediatric and AYA age bands separately, inspect calibration and outcomes within diagnosis, and avoid assuming that a model developed in one age range transports to another.</p>`;
+  $("#threshold-analysis-explanation").innerHTML = `<b>What this means</b><p>Fairness is not a fixed property of a score. As the cutoff changes, the balance between detected outcomes, missed outcomes, and model-positive classifications changes for both populations.</p><b>Possible actions</b><p>Select thresholds using the intended clinical action and relative harms of false negatives and false positives. Predefine acceptable performance, examine confidence intervals, and document whether one threshold or population-specific recalibration is justified.</p>`;
 }
 
 function signedLineChart(rows, series, colors, referenceName, comparisonName) {
@@ -280,6 +392,9 @@ function renderModelCharts(reference, comparison, referenceName, comparisonName,
   }).join("");
   const grid = [0, .25, .5, .75, 1].map((value) => `<line x1="${left}" y1="${top + plotHeight - value * plotHeight}" x2="${width - right}" y2="${top + plotHeight - value * plotHeight}" class="chart-grid"/>${svgText(left - 8, top + plotHeight - value * plotHeight + 4, formatPercent(value, 0), "chart-label", "end")}${svgText(left + value * plotWidth, height - 25, formatPercent(value, 0))}`).join("");
   $("#calibration-chart").innerHTML = `<svg class="audit-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Observed versus predicted risk calibration plot">${grid}<line x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top}" class="ideal-line"/>${points}${svgText(left + plotWidth / 2, height - 5, "Mean predicted risk", "chart-axis-title")}${svgText(14, top + plotHeight / 2, "Observed outcome rate", "chart-axis-title vertical")}</svg>${chartLegend(referenceName, comparisonName, true)}`;
+  const referencePerformance = performance(reference, threshold); const comparisonPerformance = performance(comparison, threshold);
+  $("#risk-explanation").innerHTML = `<b>What this means</b><p>The distributions show whether ${escapeHtml(referenceName)} and ${escapeHtml(comparisonName)} receive systematically different predicted risks. At ${formatPercent(threshold, 0)}, ${formatPercent(referencePerformance.selectionRate)} and ${formatPercent(comparisonPerformance.selectionRate)}, respectively, are model-positive.</p><b>Possible actions</b><p>Inspect whether distribution shifts remain within cancer type, stage, and treatment strata; review influential predictors; and evaluate the consequences of changing the threshold before deployment.</p>`;
+  $("#calibration-explanation").innerHTML = `<b>What this means</b><p>Calibration asks whether a predicted probability corresponds to the observed synthetic outcome frequency. Overall observed-to-expected ratios are ${formatNumber(referencePerformance.calibrationRatio)} for ${escapeHtml(referenceName)} and ${formatNumber(comparisonPerformance.calibrationRatio)} for ${escapeHtml(comparisonName)}.</p><b>Possible actions</b><p>Recalibrate only after checking outcome definitions, follow-up, censoring, and dataset shift. Validate recalibration externally and ensure that improvement is not confined to the largest group.</p>`;
 }
 
 function renderIntegration() {
@@ -324,6 +439,8 @@ function table(headers, rows, className = () => "") {
 
 function renderAll() {
   renderStatus();
+  refreshTable1Groups();
+  renderTable1();
   renderExecutiveSummary();
   renderReadiness();
   renderCare();
@@ -332,7 +449,7 @@ function renderAll() {
   renderIntegration();
 }
 
-function createSynthetic() {
+function createSynthetic(announce = true) {
   cohort = generateCohort({
     size: Number($("#cohort-size").value),
     seed: Number($("#seed").value),
@@ -340,6 +457,13 @@ function createSynthetic() {
   });
   source = "Synthetic";
   renderAll();
+  if (announce) {
+    const message = $("#generation-message");
+    message.innerHTML = `<b>Cohort generated.</b> ${cohort.length.toLocaleString()} synthetic records created using the ${escapeHtml(SCENARIOS[$("#scenario").value].label)} scenario and seed ${escapeHtml($("#seed").value)}. Table 1 and all analyses have been refreshed.`;
+    message.classList.add("show");
+    window.setTimeout(() => message.classList.remove("show"), 6500);
+    window.setTimeout(() => $(".table-one-card").scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  }
 }
 
 for (const [key, scenario] of Object.entries(SCENARIOS)) {
@@ -348,7 +472,7 @@ for (const [key, scenario] of Object.entries(SCENARIOS)) {
 $("#scenario").value = "access_gap";
 updateScenarioDescription();
 $("#scenario").addEventListener("change", updateScenarioDescription);
-$("#generate").addEventListener("click", createSynthetic);
+$("#generate").addEventListener("click", () => createSynthetic(true));
 $("#download-csv").addEventListener("click", () => download("cancer-equity-compass-synthetic.csv", toCsv(cohort), "text/csv"));
 $("#download-json").addEventListener("click", () => download("cancer-equity-compass-synthetic.json", JSON.stringify(cohort, null, 2), "application/json"));
 $("#download-ccdi-bundle").addEventListener("click", () => download("cancer-equity-compass-ccdi-demonstration-bundle.json", JSON.stringify(toCcdiDemonstrationBundle(cohort), null, 2), "application/json"));
@@ -368,14 +492,21 @@ $("#file-upload").addEventListener("change", async (event) => {
   }
 });
 $$('.group-field').forEach((select) => select.addEventListener("change", () => select.closest(".tab-panel").id === "care" ? renderCare() : renderReadiness()));
-$("#fairness-field").addEventListener("change", () => { refreshFairnessGroups(); renderFairness(); });
-$("#reference-group").addEventListener("change", renderFairness);
-$("#comparison-group").addEventListener("change", renderFairness);
-$("#threshold").addEventListener("input", renderFairness);
+function renderFairnessInView() {
+  renderFairness();
+  window.requestAnimationFrame(() => $(".live-fairness-card").scrollIntoView({ behavior: "smooth", block: "nearest" }));
+}
+$("#fairness-field").addEventListener("change", () => { refreshFairnessGroups(); renderFairnessInView(); });
+$("#reference-group").addEventListener("change", renderFairnessInView);
+$("#comparison-group").addEventListener("change", renderFairnessInView);
+$("#threshold").addEventListener("input", renderFairnessInView);
+$("#table1-field").addEventListener("change", () => { refreshTable1Groups(); renderTable1(); });
+$("#table1-reference").addEventListener("change", renderTable1);
+$("#table1-comparison").addEventListener("change", renderTable1);
 $$('.tab').forEach((button) => button.addEventListener("click", () => {
   $$('.tab').forEach((tab) => tab.classList.toggle("active", tab === button));
   $$('.tab-panel').forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
 }));
 $$('[data-scroll]').forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.scroll).scrollIntoView()));
 
-createSynthetic();
+createSynthetic(false);

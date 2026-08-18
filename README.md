@@ -27,6 +27,19 @@ bands with fewer than 30 records are omitted from the visual display. Data
 readiness uses a population-by-field missingness heatmap, while care processes
 are presented as completion, reference-gap, and pathway-cascade charts.
 
+Generation produces an immediate confirmation and a configurable Table 1 with
+demographic, cancer, treatment, care, and outcome characteristics. Continuous
+variables include mean, standard deviation, median, interquartile range,
+Welch's t test, and Mann-Whitney U test; categorical variables use chi-square
+tests. Baseline documentation missingness is present in every synthetic
+scenario and is documented in the synthetic-data specification.
+
+The live fairness chart visualizes statistical-parity difference,
+true-positive-rate difference, true-negative-rate difference,
+false-negative-rate difference, and false-positive-rate difference with 95%
+intervals for differences in proportions. Threshold-dependent outputs update
+in real time and are presented immediately below the controls.
+
 ## Active risk score and threshold
 
 The current executable score is a **synthetic two-year adverse-outcome

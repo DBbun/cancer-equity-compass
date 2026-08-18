@@ -6,7 +6,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta name="description" content="Synthetic-data toolkit for auditing childhood and AYA cancer data, care gaps, and prediction models.">
   <title>Childhood and AYA Cancer Equity Compass</title>
-  <link rel="stylesheet" href="styles.css?v=20260818-3">
+  <link rel="stylesheet" href="styles.css?v=20260818-4">
 </head>
 <body>
   <header class="hero">
@@ -73,6 +73,7 @@
         <label>Seed<input id="seed" type="number" value="2026" min="1" step="1"></label>
         <button class="primary" id="generate">Generate cohort</button>
       </div>
+      <div id="generation-message" class="generation-message" role="status" aria-live="polite"></div>
       <div class="upload-row">
         <label class="file-button">Upload canonical CSV<input id="file-upload" type="file" accept=".csv,text/csv"></label>
         <button class="secondary" id="download-csv" disabled>Download synthetic CSV</button>
@@ -84,6 +85,12 @@
         <ol><li>Select a scenario that represents the data, care, or model behavior to evaluate.</li><li>Choose a sample size and seed, then generate the cohort.</li><li>Use Sections 02–04 to determine whether the known signal is detected across populations.</li><li>Download synthetic CSV/JSON for reproducible testing, teaching, or integration work. Generated values are engineering demonstrations, not epidemiologic estimates.</li></ol>
       </div>
       <article class="executive-summary" id="executive-summary" aria-live="polite"></article>
+      <article class="card table-one-card">
+        <div class="panel-title"><div><div class="eyebrow">Descriptive and inferential statistics</div><h3>Table 1. Cohort characteristics and outcomes</h3></div><div class="table-one-controls"><label>Compare by<select id="table1-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="cancer_type">Cancer type</option><option value="risk_group">Cancer risk group</option></select></label><label>Group A<select id="table1-reference"></select></label><label>Group B<select id="table1-comparison"></select></label></div></div>
+        <p class="formula">Continuous characteristics include mean (SD), median [IQR], Welch's t test, and Mann-Whitney U test. Categorical characteristics and outcomes use chi-square tests. P values describe synthetic cohort differences and are not evidence about real patients.</p>
+        <div id="table1-summary"></div>
+        <div id="table1"></div>
+      </article>
       <article class="card evidence-card">
         <h3>Cancer evidence represented in the synthetic design</h3>
         <p>The generator uses cancer-specific concepts documented in the reviewed literature: diagnosis and stage, tumor biology, treatment exposures, survivorship, fertility risk, adherence, follow-up, and care barriers. Parameters remain synthetic engineering assumptions unless explicitly identified as published estimates.</p>
@@ -99,15 +106,15 @@
     <section class="tab-panel" id="readiness" aria-labelledby="readiness-title">
       <div class="panel-title"><div><div class="eyebrow">Data Readiness Auditor</div><h2 id="readiness-title">Is the cohort fit for subgroup analysis?</h2></div><label>Population<select class="group-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="age_sex">Age × sex</option><option value="cancer_type">Cancer type</option><option value="risk_group">Cancer risk group</option><option value="care_model">Care model</option><option value="site">Site</option></select></label></div>
       <div class="kpi-grid" id="readiness-kpis"></div>
-      <div class="two-column"><article class="card"><h3>Representation</h3><div id="representation-chart"></div></article><article class="card"><h3>Missingness heatmap</h3><p class="formula">Rows are populations and columns are fields. Darker cells indicate greater missingness; hover for missing count and denominator.</p><div id="missingness-table"></div></article></div>
+      <div class="two-column"><article class="card"><h3>Representation</h3><div id="representation-chart"></div><div id="representation-explanation" class="chart-explanation"></div></article><article class="card"><h3>Missingness heatmap</h3><p class="formula">Rows are populations and columns are fields. Darker cells indicate greater missingness; hover for missing count and denominator.</p><div id="missingness-table"></div><div id="missingness-explanation" class="chart-explanation"></div></article></div>
     </section>
 
     <section class="tab-panel" id="care" aria-labelledby="care-title">
       <div class="panel-title"><div><div class="eyebrow">Care-Gap Analyzer</div><h2 id="care-title">Who receives indicated testing, treatment, and follow-up?</h2></div><label>Population<select class="group-field"><option value="race_ethnicity">Race and ethnicity</option><option value="sex">Sex</option><option value="age_group">Age group</option><option value="age_sex">Age × sex</option><option value="cancer_type">Cancer type</option><option value="risk_group">Cancer risk group</option><option value="care_model">Care model</option><option value="site">Site</option></select></label></div>
       <p class="interpretation">Rates use clinically relevant eligibility denominators. Differences are review signals—not causal estimates or proof of unequal care.</p>
       <div id="care-headline" class="finding-banner"></div>
-      <div class="two-column care-charts"><article class="card"><h3>Care completion by population</h3><p class="formula">Completion among participants eligible for each care process.</p><div id="care-rate-chart"></div></article><article class="card"><h3>Gap from reference population</h3><p class="formula">Percentage-point difference from the largest population. Negative values indicate lower completion.</p><div id="care-gap-chart"></div></article></div>
-      <article class="card"><h3>Care pathway cascade</h3><p class="formula">Tracks attrition through treatment receipt, adherence, follow-up, and survivorship planning.</p><div id="care-cascade-chart"></div></article>
+      <div class="two-column care-charts"><article class="card"><h3>Care completion by population</h3><p class="formula">Completion among participants eligible for each care process.</p><div id="care-rate-chart"></div><div id="care-rate-explanation" class="chart-explanation"></div></article><article class="card"><h3>Gap from reference population</h3><p class="formula">Percentage-point difference from the largest population. Negative values indicate lower completion.</p><div id="care-gap-chart"></div><div id="care-gap-explanation" class="chart-explanation"></div></article></div>
+      <article class="card"><h3>Care pathway cascade</h3><p class="formula">Tracks attrition through treatment receipt, adherence, follow-up, and survivorship planning.</p><div id="care-cascade-chart"></div><div id="care-cascade-explanation" class="chart-explanation"></div></article>
     </section>
 
     <section class="tab-panel" id="fairness" aria-labelledby="fairness-title">
@@ -118,14 +125,15 @@
         <label>Comparison<select id="comparison-group"></select></label>
         <label>Risk threshold <output id="threshold-output">20%</output><input id="threshold" type="range" min="0.05" max="0.60" value="0.20" step="0.01"></label>
       </div>
+      <article class="card live-fairness-card"><h3>Live fairness comparison</h3><p class="formula">Directional differences are Group B minus Group A. Confidence intervals are 95% intervals for differences in proportions. The chart updates immediately with the threshold.</p><div id="fairness-metric-chart"></div><div id="fairness-metric-explanation" class="chart-explanation"></div></article>
       <aside class="threshold-explainer"><b>What does the risk threshold mean?</b><p>The active score estimates a <strong>synthetic two-year adverse-outcome probability</strong>. At 20%, for example, scores at or above 0.20 are classified as model-positive. The cutoff is an exploratory software setting—not a validated cancer-treatment threshold. Changing it alters who is flagged and therefore sensitivity, false-negative rates, false-positive rates, and measured group differences.</p><p>Clinical thresholds must be tied to a named model, outcome, time horizon, intended action, and supporting publication or guideline. No universal threshold applies across childhood and AYA cancers. See the <a href="docs/literature-topic-map.md">evidence-to-variable matrix</a> and <a href="https://doi.org/10.1038/s41598-022-16615-3">Kartoun et al. fairness framework</a>.</p></aside>
       <article class="card model-registry"><h3>Risk-model registry and implementation status</h3><div class="registry-grid"><div><b>Active: synthetic two-year adverse outcome</b><span>Implemented for engineering and fairness demonstrations; not clinically validated.</span></div><div><b>Breast cancer after childhood chest radiation</b><span>Moskowitz et al., JCO 2021. Published/validated; adapter planned.</span></div><div><b>Ischemic heart disease and stroke</b><span>Chow et al., JCO 2018. Published/validated; adapter planned.</span></div><div><b>Acute ovarian failure</b><span>Clark et al., Lancet Oncology 2020. Published/validated; adapter planned.</span></div><div><b>Survival and second malignancy</b><span>SEER random-survival-forest research model. Evidence reviewed; adapter planned.</span></div></div></article>
       <div class="kpi-grid" id="performance-kpis"></div>
       <div class="two-column model-charts">
-        <article class="card"><h3>Predicted-risk distribution</h3><p class="formula">Each bar shows the share of a population within a predicted-risk interval. The vertical line marks the current model-positive threshold.</p><div id="risk-histogram"></div></article>
-        <article class="card"><h3>Calibration by predicted-risk band</h3><p class="formula">Points compare mean predicted risk with the observed synthetic outcome rate. Points above the diagonal indicate underprediction; points below indicate overprediction. Bands with fewer than 30 records are omitted.</p><div id="calibration-chart"></div></article>
+        <article class="card"><h3>Predicted-risk distribution</h3><p class="formula">Each bar shows the share of a population within a predicted-risk interval. The vertical line marks the current model-positive threshold.</p><div id="risk-histogram"></div><div id="risk-explanation" class="chart-explanation"></div></article>
+        <article class="card"><h3>Calibration by predicted-risk band</h3><p class="formula">Points compare mean predicted risk with the observed synthetic outcome rate. Points above the diagonal indicate underprediction; points below indicate overprediction. Bands with fewer than 30 records are omitted.</p><div id="calibration-chart"></div><div id="calibration-explanation" class="chart-explanation"></div></article>
       </div>
-      <div class="two-column model-charts"><article class="card"><h3>Age analysis</h3><p class="formula">Observed outcome, predicted risk, and model-positive rate across childhood and AYA age bands.</p><div id="age-analysis-chart"></div></article><article class="card"><h3>Fairness across thresholds</h3><p class="formula">Sensitivity and false-negative-rate gaps change as the decision cutoff changes.</p><div id="threshold-analysis-chart"></div></article></div>
+      <div class="two-column model-charts"><article class="card"><h3>Age analysis</h3><p class="formula">Observed outcome, predicted risk, and model-positive rate across childhood and AYA age bands.</p><div id="age-analysis-chart"></div><div id="age-explanation" class="chart-explanation"></div></article><article class="card"><h3>Fairness across thresholds</h3><p class="formula">Sensitivity and false-negative-rate gaps change as the decision cutoff changes.</p><div id="threshold-analysis-chart"></div><div id="threshold-analysis-explanation" class="chart-explanation"></div></article></div>
       <article class="card"><h3>Directional fairness measures</h3><p class="formula">Comparison population minus reference population. Zero means no measured difference.</p><div class="metric-grid" id="fairness-metrics"></div></article>
       <article class="card"><h3>Population performance table</h3><div id="performance-table"></div></article>
     </section>
@@ -141,6 +149,6 @@
   </main>
 
   <footer><div><b>Childhood and AYA Cancer Equity Compass</b><span>Research and governance support only</span></div><div>Developed by DBbun LLC · 2026</div></footer>
-  <script type="module" src="js/app.js?v=20260818-4"></script>
+  <script type="module" src="js/app.js?v=20260818-5"></script>
 </body>
 </html>

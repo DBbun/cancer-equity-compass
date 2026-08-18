@@ -52,6 +52,23 @@ parameter is described as clinically realistic, it must be supported by a cited
 source, documented population, applicable age range, outcome definition, and
 uncertainty statement.
 
+## Baseline documentation missingness
+
+All scenarios, including the balanced benchmark, contain nonzero documentation
+missingness. The current engineering defaults are 3.5% for molecular-testing
+completion, 6% for treatment adherence, 4.5% for follow-up completion, 7% for
+psychosocial screening, and 8% for survivorship-plan completion. Records with
+no recent survivorship care receive a small additional documentation penalty;
+the differential-missingness and site-variation scenarios add further targeted
+missingness.
+
+These probabilities are deliberately plausible stress-test settings informed
+by the reviewed adherence, survivorship, follow-up, and registry literature.
+They are not pooled prevalence estimates and must not be cited as observed
+CCDI missingness. Missing values are introduced after complete latent records
+are generated so the software can distinguish undocumented care from a
+documented negative care outcome.
+
 ## Reproducibility
 
 The generator uses a deterministic pseudorandom seed. A scenario, cohort size,

@@ -9,6 +9,64 @@ function mean(values) {
   return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
 }
 
+function variance(values, average = mean(values)) {
+  return values.length > 1 ? values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1) : 0;
+}
+
+function normalCdf(value) {
+  const sign = value < 0 ? -1 : 1;
+  const x = Math.abs(value) / Math.sqrt(2);
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = sign * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
+  return 0.5 * (1 + erf);
+}
+
+export function welchTTest(firstValues, secondValues) {
+  const first = firstValues.map(Number).filter(Number.isFinite);
+  const second = secondValues.map(Number).filter(Number.isFinite);
+  if (first.length < 2 || second.length < 2) return { statistic: null, pValue: null };
+  const firstMean = mean(first); const secondMean = mean(second);
+  const standardError = Math.sqrt(variance(first, firstMean) / first.length + variance(second, secondMean) / second.length);
+  const statistic = standardError ? (firstMean - secondMean) / standardError : 0;
+  return { statistic, pValue: Math.min(1, 2 * (1 - normalCdf(Math.abs(statistic)))) };
+}
+
+export function mannWhitneyTest(firstValues, secondValues) {
+  const first = firstValues.map(Number).filter(Number.isFinite);
+  const second = secondValues.map(Number).filter(Number.isFinite);
+  if (!first.length || !second.length) return { statistic: null, pValue: null };
+  const ranked = [...first.map((value) => ({ value, group: 0 })), ...second.map((value) => ({ value, group: 1 }))].sort((a, b) => a.value - b.value);
+  let rankSum = 0;
+  for (let index = 0; index < ranked.length;) {
+    let end = index + 1;
+    while (end < ranked.length && ranked[end].value === ranked[index].value) end += 1;
+    const averageRank = (index + 1 + end) / 2;
+    for (let cursor = index; cursor < end; cursor += 1) if (ranked[cursor].group === 0) rankSum += averageRank;
+    index = end;
+  }
+  const u = rankSum - first.length * (first.length + 1) / 2;
+  const meanU = first.length * second.length / 2;
+  const standardDeviation = Math.sqrt(first.length * second.length * (first.length + second.length + 1) / 12);
+  const z = standardDeviation ? (u - meanU) / standardDeviation : 0;
+  return { statistic: u, pValue: Math.min(1, 2 * (1 - normalCdf(Math.abs(z)))) };
+}
+
+export function chiSquareTest(firstRows, secondRows, field) {
+  const categories = [...new Set([...firstRows, ...secondRows].map((row) => String(row[field] ?? "Missing")))];
+  const observed = [firstRows, secondRows].map((rows) => categories.map((category) => rows.filter((row) => String(row[field] ?? "Missing") === category).length));
+  const rowTotals = observed.map((row) => row.reduce((sum, value) => sum + value, 0));
+  const columnTotals = categories.map((_, index) => observed[0][index] + observed[1][index]);
+  const total = rowTotals[0] + rowTotals[1];
+  let statistic = 0;
+  for (let row = 0; row < 2; row += 1) for (let column = 0; column < categories.length; column += 1) {
+    const expected = rowTotals[row] * columnTotals[column] / total;
+    if (expected) statistic += (observed[row][column] - expected) ** 2 / expected;
+  }
+  const degreesFreedom = Math.max(1, categories.length - 1);
+  const z = (Math.pow(statistic / degreesFreedom, 1 / 3) - (1 - 2 / (9 * degreesFreedom))) / Math.sqrt(2 / (9 * degreesFreedom));
+  return { statistic, pValue: Math.max(0, Math.min(1, 1 - normalCdf(z))), categories, observed };
+}
+
 function binary(value) {
   return value === 1 || value === "1" || value === true;
 }

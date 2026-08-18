@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { generateCohort } from "../js/synthetic.js";
-import { performance, directionalFairness, groupCounts, careRates, riskHistogram, calibrationBins, wilsonInterval } from "../js/metrics.js";
+import { performance, directionalFairness, groupCounts, careRates, riskHistogram, calibrationBins, wilsonInterval, welchTTest, mannWhitneyTest, chiSquareTest } from "../js/metrics.js";
 import { parseCsv, toCsv, toCcdiDemonstrationBundle, validateRows } from "../js/adapter.js";
 import { buildAuditReport } from "../js/report.js";
 
@@ -21,6 +21,23 @@ test("care-rate confidence intervals contain the observed proportion", () => {
   assert.ok(lower < 0.8 && upper > 0.8);
   const rows = generateCohort({ size: 2000, seed: 31, scenario: "balanced" });
   assert.ok(careRates(rows, "age_sex").filter((row) => !row.suppressed).every((row) => row.confidenceInterval[0] <= row.rate && row.rate <= row.confidenceInterval[1]));
+});
+
+test("balanced cohorts include realistic baseline documentation missingness", () => {
+  const rows = generateCohort({ size: 10000, seed: 2026, scenario: "balanced" });
+  for (const field of ["molecular_test_completed", "treatment_adherent", "followup_complete", "psychosocial_screen_completed", "survivorship_plan_completed"]) {
+    const missing = rows.filter((row) => row[field] == null).length;
+    assert.ok(missing > 0, `${field} should contain missing values`);
+    assert.ok(missing / rows.length < 0.2, `${field} baseline missingness should remain bounded`);
+  }
+});
+
+test("Table 1 statistical tests identify strong synthetic differences", () => {
+  const first = Array.from({ length: 100 }, (_, index) => ({ value: index, category: index < 50 ? "A" : "B" }));
+  const second = Array.from({ length: 100 }, (_, index) => ({ value: index + 100, category: index < 10 ? "A" : "B" }));
+  assert.ok(welchTTest(first.map((row) => row.value), second.map((row) => row.value)).pValue < 0.001);
+  assert.ok(mannWhitneyTest(first.map((row) => row.value), second.map((row) => row.value)).pValue < 0.001);
+  assert.ok(chiSquareTest(first, second, "category").pValue < 0.001);
 });
 
 test("performance metrics stay within expected bounds", () => {

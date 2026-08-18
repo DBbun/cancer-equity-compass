@@ -290,15 +290,27 @@ export function generateCohort({ size = 10000, seed = 2026, scenario = "access_g
       ? Math.max(0.5, Math.round((2 + random() * 21) * 10) / 10)
       : Math.max(4, Math.round((16 + random() * 8) * 10) / 10);
 
-    if (effects.missingness && random() < effects.missingness) {
-      const field = sampleWeighted(random, [
-        ["molecular_test_completed", 0.35],
-        ["treatment_adherent", 0.30],
-        ["followup_complete", 0.20],
-        ["psychosocial_screen_completed", 0.10],
-        ["survivorship_plan_completed", 0.05]
-      ]);
-      row[field] = null;
+    // Real clinical and registry datasets are rarely complete. These are
+    // synthetic engineering assumptions, informed by the reviewed adherence,
+    // survivorship, and registry literature rather than copied estimates.
+    // Missingness is generated separately from a negative care outcome.
+    const baselineMissingness = [
+      ["molecular_test_completed", 0.035],
+      ["treatment_adherent", 0.060],
+      ["followup_complete", 0.045],
+      ["psychosocial_screen_completed", 0.070],
+      ["survivorship_plan_completed", 0.080]
+    ];
+    for (const [field, baseline] of baselineMissingness) {
+      const scenarioAddition = effects.missingness * ({
+        molecular_test_completed: 0.34,
+        treatment_adherent: 0.28,
+        followup_complete: 0.20,
+        psychosocial_screen_completed: 0.11,
+        survivorship_plan_completed: 0.07
+      }[field] ?? 0);
+      const documentationAddition = row.care_model === "No recent survivorship care" ? 0.025 : 0;
+      if (random() < clamp(baseline + scenarioAddition + documentationAddition, 0, 0.45)) row[field] = null;
     }
     rows.push(row);
   }
