@@ -34,6 +34,15 @@ Welch's t test, and Mann-Whitney U test; categorical variables use chi-square
 tests. Baseline documentation missingness is present in every synthetic
 scenario and is documented in the synthetic-data specification.
 
+The generator uses seeded pseudorandom draws with explicit conditional
+relationships; it does not create independent random columns. Cancer grouping,
+age, risk, treatment exposure, care setting, access barriers, and scenario
+settings influence downstream eligibility, care, outcomes, and predictions.
+The current parameters are engineering assumptions rather than fitted CCDI
+estimates. The specification states the implicit analysis baseline, 24-month
+horizon, current loss-to-follow-up limitation, validation tests, and planned
+fidelity, privacy, confounding, and causal extensions.
+
 The live fairness chart visualizes statistical-parity difference,
 true-positive-rate difference, true-negative-rate difference,
 false-negative-rate difference, and false-positive-rate difference with 95%
@@ -89,8 +98,10 @@ material belongs in a public deployment.
 
 The canonical demonstration schema is documented in [`docs/data-contract.md`](docs/data-contract.md) and machine-readable in [`data/canonical-schema.json`](data/canonical-schema.json). The adapter is designed for later alignment with CCDI specifications in collaboration with NCI/CCDI; current field mappings must not be represented as an official CCDI endorsement or completed integration.
 
-The data-generating process and injected ground truth are documented in
-[`docs/synthetic-data-specification.md`](docs/synthetic-data-specification.md).
+The data-generating process, covariate relationships, prediction origin,
+quality checks, and future validation work are documented in the
+[formatted synthetic-data specification](docs/synthetic-data-specification.html)
+([Markdown source](docs/synthetic-data-specification.md)).
 An evidence-to-variable matrix based on direct review of the local literature is
 maintained in [`docs/literature-topic-map.md`](docs/literature-topic-map.md).
 Published estimates remain separate from the current engineering parameters unless
