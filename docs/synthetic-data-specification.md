@@ -56,25 +56,34 @@ another clinical population. The current generator does not reproduce every
 real interaction, treatment-selection process, site effect, or temporal
 dependency.
 
-## Prediction origin, horizon, and follow-up
+## Prediction origin, horizon, outcome, and follow-up
 
-The current demonstration score predicts a synthetic adverse outcome within 24
-months. Its prediction origin is an **implicit analysis baseline after diagnosis,
-disease classification, treatment exposure, and the represented care-process
-variables have been assigned**. The prototype does not yet include a calendar
-`index_date`, and it must not be interpreted as a diagnosis-time model or a
-treatment-start model. A published-model adapter must explicitly define its
-eligible population, index event/date, look-back window, predictor availability,
-outcome, competing events, censoring rules, and prediction horizon.
+The current demonstration uses a fixed landmark design. `diagnosis_date` is
+simulated, and **`index_date` is exactly 180 days after diagnosis**. Variables
+used by the prediction score represent information available by that landmark.
+The score predicts a synthetic adverse outcome during the next 24 months. This
+common time origin allows treated and untreated participants to enter follow-up
+at the same elapsed time and avoids defining baseline by a future event such as
+treatment completion.
 
-`followup_complete` is a simulated care/documentation measure. It is distinct
-from the time-to-event fields. For the current engineering demonstration,
-`event_observed` equals the two-year binary outcome; records without the outcome
-receive a simulated observation time late in the 24-month window. Thus, the
-prototype does **not** yet model loss to follow-up as informative censoring and
-does not estimate inverse-probability-of-censoring weights. This limitation is
-deliberate and documented so that a missing follow-up record is not mistaken for
-a known absence of an outcome.
+The latent binary outcome is sampled from a logistic mechanism using baseline
+risk group, age group, treatment receipt, early adherence, baseline adverse
+events, cost barriers, transition readiness, and scenario effects. A latent
+event receives a simulated date within the 24-month window. Separately, a
+loss-to-follow-up time is sampled using follow-up completion, cost barriers, and
+AYA status. If the event occurs before loss to follow-up, `outcome_2y=1` and
+`outcome_date` is recorded. If no event occurs and 24 months are observed,
+`outcome_2y=0`. If contact ends first without an observed event,
+`outcome_2y=null`, `lost_to_followup=1`, and `last_contact_date` records the
+censoring date. A censored record is therefore not misclassified as event-free.
+
+`followup_complete` remains a care/documentation measure and is distinct from
+`lost_to_followup`. The current fairness metrics use only records with observed
+binary outcomes. The generator now represents right censoring, but it does not
+yet correct for informative censoring with inverse-probability weights or model
+competing events. A published-model adapter must explicitly define its eligible
+population, index event/date, look-back window, predictor availability, outcome,
+competing events, censoring rules, and prediction horizon.
 
 ## Current quality checks
 
@@ -115,14 +124,22 @@ risk separately, because optimizing one can degrade another.
 
 ## Future causal and longitudinal extensions
 
-Future work will add explicit index dates, longitudinal encounters, competing
-risks, administrative and informative censoring, and loss-to-follow-up
-mechanisms. It will also distinguish descriptive fairness audits from causal
+Future work will add richer longitudinal encounters, competing risks, and
+adjustment for informative censoring. It will also distinguish descriptive fairness audits from causal
 questions. Directed acyclic graphs, prespecified confounders, propensity or
 weighting methods, doubly robust estimators, sensitivity analyses for
 unmeasured confounding, and transportability checks may be added when the data,
 estimand, and governance support them. These methods will not convert an
 observational disparity into a causal claim without defensible assumptions.
+
+For treated-versus-untreated comparisons, future work will emulate a target
+trial anchored at diagnosis or the day-180 landmark. Eligibility, treatment
+strategies, assignment, follow-up, outcome, estimand, and analysis will be
+prespecified. Baseline confounding, treatment-selection bias, immortal-time
+bias, treatment changes, adherence, informative censoring, and positivity will
+be addressed explicitly. Candidate estimands include intention-to-treat and
+per-protocol effects, using propensity weighting or matching, outcome
+regression, doubly robust estimation, and sensitivity analyses as appropriate.
 
 ## Current scenarios
 

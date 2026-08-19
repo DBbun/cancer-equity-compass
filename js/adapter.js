@@ -1,5 +1,9 @@
 export const REQUIRED_FIELDS = [
   "participant_id",
+  "diagnosis_date",
+  "index_date",
+  "index_definition",
+  "prediction_horizon_months",
   "age_at_diagnosis",
   "years_since_diagnosis",
   "cost_barrier",
@@ -20,11 +24,17 @@ export const REQUIRED_FIELDS = [
   "risk_group",
   "site",
   "predicted_risk_2y",
-  "outcome_2y"
+  "outcome_2y",
+  "outcome_date",
+  "last_contact_date",
+  "event_observed",
+  "lost_to_followup",
+  "censoring_reason"
 ];
 
 export const NUMERIC_FIELDS = new Set([
   "age_at_diagnosis",
+  "prediction_horizon_months",
   "molecular_test_eligible",
   "molecular_test_completed",
   "treatment_eligible",
@@ -46,8 +56,10 @@ export const NUMERIC_FIELDS = new Set([
   "adverse_event",
   "predicted_risk_2y",
   "outcome_2y",
+  "latent_outcome_2y",
   "time_to_event_months",
-  "event_observed"
+  "event_observed",
+  "lost_to_followup"
 ]);
 
 export function toCcdiDemonstrationBundle(rows, { studyId = "SYN-COMPASS-2026" } = {}) {
@@ -70,6 +82,7 @@ export function toCcdiDemonstrationBundle(rows, { studyId = "SYN-COMPASS-2026" }
       diagnosis_id: `${row.participant_id}-DX1`,
       participant_id: row.participant_id,
       age_at_diagnosis: row.age_at_diagnosis,
+      diagnosis_date: row.diagnosis_date,
       cancer_type: row.cancer_type,
       classification_system: row.diagnosis_classification_system,
       disease_stage: row.disease_stage,
@@ -80,6 +93,7 @@ export function toCcdiDemonstrationBundle(rows, { studyId = "SYN-COMPASS-2026" }
       treatment_id: `${row.participant_id}-TX1`,
       participant_id: row.participant_id,
       treatment_received: row.treatment_received,
+      index_date: row.index_date,
       anthracycline_dose_band: row.anthracycline_dose_band,
       alkylating_agent_dose_band: row.alkylating_agent_dose_band,
       chest_radiation: row.chest_radiation,
@@ -92,7 +106,11 @@ export function toCcdiDemonstrationBundle(rows, { studyId = "SYN-COMPASS-2026" }
       participant_id: row.participant_id,
       time_to_event_months: row.time_to_event_months,
       event_observed: row.event_observed,
-      outcome_2y: row.outcome_2y
+      outcome_2y: row.outcome_2y,
+      outcome_date: row.outcome_date,
+      last_contact_date: row.last_contact_date,
+      lost_to_followup: row.lost_to_followup,
+      censoring_reason: row.censoring_reason
     }))
   };
 }
@@ -146,7 +164,9 @@ export function validateRows(rows) {
   if (invalidAge) errors.push(`${invalidAge} records have age_at_diagnosis outside 0-39 or non-numeric.`);
   const invalidRisk = rows.filter((row) => !Number.isFinite(Number(row.predicted_risk_2y)) || Number(row.predicted_risk_2y) < 0 || Number(row.predicted_risk_2y) > 1).length;
   if (invalidRisk) errors.push(`${invalidRisk} records have predicted_risk_2y outside 0-1 or non-numeric.`);
-  const invalidOutcome = rows.filter((row) => ![0, 1].includes(Number(row.outcome_2y))).length;
-  if (invalidOutcome) errors.push(`${invalidOutcome} records have outcome_2y values other than 0 or 1.`);
+  const invalidOutcome = rows.filter((row) => row.outcome_2y != null && ![0, 1].includes(Number(row.outcome_2y))).length;
+  if (invalidOutcome) errors.push(`${invalidOutcome} records have outcome_2y values other than 0, 1, or missing because of censoring.`);
+  const invalidIndex = rows.filter((row) => !/^\d{4}-\d{2}-\d{2}$/.test(String(row.index_date || ""))).length;
+  if (invalidIndex) errors.push(`${invalidIndex} records lack a valid ISO index_date.`);
   return { valid: errors.length === 0, errors, warnings };
 }

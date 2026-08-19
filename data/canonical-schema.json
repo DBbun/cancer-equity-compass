@@ -4,6 +4,10 @@
   "type": "object",
   "required": [
     "participant_id",
+    "diagnosis_date",
+    "index_date",
+    "index_definition",
+    "prediction_horizon_months",
     "age_at_diagnosis",
     "age_group",
     "sex",
@@ -12,10 +16,19 @@
     "risk_group",
     "site",
     "predicted_risk_2y",
-    "outcome_2y"
+    "outcome_2y",
+    "outcome_date",
+    "last_contact_date",
+    "event_observed",
+    "lost_to_followup",
+    "censoring_reason"
   ],
   "properties": {
     "participant_id": {"type": "string"},
+    "diagnosis_date": {"type": "string", "format": "date"},
+    "index_date": {"type": "string", "format": "date"},
+    "index_definition": {"const": "Day 180 after diagnosis"},
+    "prediction_horizon_months": {"const": 24},
     "age_at_diagnosis": {"type": "number", "minimum": 0, "maximum": 39},
     "age_group": {"type": "string"},
     "sex": {"type": ["string", "null"]},
@@ -63,8 +76,13 @@
     "recommendations_completed": {"type": ["integer", "null"], "minimum": 0},
     "adverse_event": {"type": ["integer", "null"], "minimum": 0, "maximum": 1},
     "predicted_risk_2y": {"type": "number", "minimum": 0, "maximum": 1},
-    "outcome_2y": {"type": "integer", "minimum": 0, "maximum": 1},
+    "outcome_2y": {"type": ["integer", "null"], "minimum": 0, "maximum": 1},
+    "latent_outcome_2y": {"type": "integer", "minimum": 0, "maximum": 1},
     "time_to_event_months": {"type": "number", "minimum": 0, "maximum": 24},
-    "event_observed": {"type": "integer", "minimum": 0, "maximum": 1}
+    "event_observed": {"type": "integer", "minimum": 0, "maximum": 1},
+    "lost_to_followup": {"type": "integer", "minimum": 0, "maximum": 1},
+    "outcome_date": {"type": ["string", "null"], "format": "date"},
+    "last_contact_date": {"type": "string", "format": "date"},
+    "censoring_reason": {"enum": ["Outcome observed", "Loss to follow-up", "Administrative end of 24-month horizon"]}
   }
 }

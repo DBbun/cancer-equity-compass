@@ -82,6 +82,7 @@ export function wilsonInterval(successes, total, z = 1.96) {
 
 export function auc(rows, scoreField = "predicted_risk_2y", outcomeField = "outcome_2y") {
   const valid = rows
+    .filter((row) => row[outcomeField] != null && row[outcomeField] !== "")
     .map((row) => ({ score: Number(row[scoreField]), outcome: Number(row[outcomeField]) }))
     .filter((row) => Number.isFinite(row.score) && (row.outcome === 0 || row.outcome === 1))
     .sort((a, b) => a.score - b.score);
@@ -106,6 +107,7 @@ export function performance(rows, threshold = 0.2) {
   let tp = 0; let tn = 0; let fp = 0; let fn = 0;
   let predicted = 0; let observed = 0; let brierSum = 0; let n = 0;
   for (const row of rows) {
+    if (row.outcome_2y == null || row.outcome_2y === "") continue;
     const score = Number(row.predicted_risk_2y);
     const outcome = Number(row.outcome_2y);
     if (!Number.isFinite(score) || ![0, 1].includes(outcome)) continue;
@@ -262,6 +264,7 @@ export function calibrationBins(rows, binCount = 10, scoreField = "predicted_ris
     observedSum: 0
   }));
   for (const row of rows) {
+    if (row[outcomeField] == null || row[outcomeField] === "") continue;
     const score = Number(row[scoreField]);
     const outcome = Number(row[outcomeField]);
     if (!Number.isFinite(score) || score < 0 || score > 1 || ![0, 1].includes(outcome)) continue;

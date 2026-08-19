@@ -21,7 +21,11 @@ Scenario settings intentionally alter data generation and model behavior. Becaus
 
 ## Prediction origin and horizon
 
-The outcome horizon is 24 months. The current prediction origin is an implicit analysis baseline after the simulated diagnosis, disease classification, treatment exposure, and represented care-process variables have been assigned. No calendar index date is generated, so this demonstration must not be interpreted as a diagnosis-time or treatment-start clinical model. Every future published-model adapter must preserve the model's original index event, predictor-availability window, outcome definition, censoring rules, and horizon.
+The outcome horizon is 24 months. The prediction origin is a fixed landmark exactly 180 days after the simulated diagnosis date. Predictors represent information available by that landmark. Outcome follow-up starts the next day. Every future published-model adapter must preserve the model's original index event, predictor-availability window, outcome definition, censoring rules, and horizon.
+
+## Outcome and censoring
+
+The latent adverse outcome is sampled from a logistic mechanism using baseline disease risk, age, treatment receipt, early adherence, baseline adverse events, cost barriers, transition readiness, and scenario effects. An observed event receives an `outcome_date`. Participants observed without an event for 24 months receive `outcome_2y=0`. Participants lost before the event or administrative horizon receive `outcome_2y=null`, a `last_contact_date`, and `lost_to_followup=1`; they are not counted as event-free. Current binary fairness metrics use records with observed outcomes and do not yet adjust for informative censoring.
 
 ## Evaluation
 
@@ -31,4 +35,4 @@ Synthetic-data verification currently measures reproducibility, schema validity,
 
 ## Limitations
 
-The generator simplifies cancer heterogeneity, sex and gender, race and ethnicity, treatment pathways, censoring, competing risks, and causal structure. `followup_complete` is a care/documentation measure; it is not a complete loss-to-follow-up model. Real deployment requires clinically governed definitions, explicit index dates, validated mappings, informative-censoring analysis, uncertainty analysis, confounding assessment, causal estimands where appropriate, and external evaluation.
+The generator simplifies cancer heterogeneity, sex and gender, race and ethnicity, treatment pathways, censoring, competing risks, and causal structure. `followup_complete` is a care/documentation measure; `lost_to_followup` is the censoring indicator. Real deployment requires clinically governed definitions, validated mappings, informative-censoring analysis, uncertainty analysis, confounding assessment, causal estimands where appropriate, and external evaluation. Future treated-versus-untreated comparisons require target-trial emulation rather than crude outcome contrasts.

@@ -71,7 +71,9 @@ export function buildAuditReport(rows, options = {}) {
       fairnessField,
       referenceGroup: reference,
       comparisonGroup: comparison,
-      riskThreshold: threshold
+      riskThreshold: threshold,
+      predictionIndex: rows[0]?.index_definition || "Unspecified",
+      predictionHorizonMonths: Number(rows[0]?.prediction_horizon_months) || null
     },
     readiness: {
       representation: groupCounts(rows, readinessField),
@@ -80,6 +82,11 @@ export function buildAuditReport(rows, options = {}) {
     },
     care: careRates(rows, careField, minGroupSize),
     model: {
+      outcomeObservation: {
+        observedBinaryOutcomes: rows.filter((row) => row.outcome_2y === 0 || row.outcome_2y === 1 || row.outcome_2y === "0" || row.outcome_2y === "1").length,
+        observedEvents: rows.filter((row) => row.event_observed === 1 || row.event_observed === "1").length,
+        lostToFollowup: rows.filter((row) => row.lost_to_followup === 1 || row.lost_to_followup === "1").length
+      },
       overall: performance(rows, threshold),
       byPopulation: groupPerformance(rows, fairnessField, threshold, minGroupSize)
         .map(withoutSuppressedMetrics),

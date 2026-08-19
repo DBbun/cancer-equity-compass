@@ -59,7 +59,7 @@ specific CCDI Data Model and Metadata Submission Template version.
 
 ## Time-to-event fields
 
-`time_to_event_months` is the observed time up to 24 months and `event_observed` indicates whether the modeled event occurred before censoring.
+`diagnosis_date` anchors each synthetic record. `index_date` is exactly 180 days later, and outcome follow-up begins after that landmark. `time_to_event_months` is the observed time up to 24 months. `outcome_date` is populated only for an observed event; `last_contact_date`, `lost_to_followup`, and `censoring_reason` distinguish event-free observation from incomplete follow-up. A participant censored before the event or horizon has a missing `outcome_2y`, not a negative outcome.
 
 ## Missingness
 

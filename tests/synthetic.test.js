@@ -13,6 +13,11 @@ test("synthetic generation is deterministic and schema-valid", () => {
   assert.ok(first.every((row) => row.recommendations_completed <= row.recommendations_recalled));
   assert.ok(first.every((row) => row.recommendations_recalled <= row.recommendations_given));
   assert.ok(first.every((row) => row.transition_readiness >= 0 && row.transition_readiness <= 1));
+  assert.ok(first.every((row) => row.index_definition === "Day 180 after diagnosis"));
+  assert.ok(first.every((row) => row.prediction_horizon_months === 24));
+  assert.ok(first.every((row) => row.last_contact_date >= row.index_date));
+  assert.ok(first.every((row) => row.event_observed ? row.outcome_date != null : row.outcome_date == null));
+  assert.ok(first.every((row) => row.lost_to_followup ? row.outcome_2y == null : [0, 1].includes(row.outcome_2y)));
   assert.ok(first.every((row) => row.age_sex === `${row.age_group} · ${row.sex}`));
 });
 
@@ -20,7 +25,7 @@ test("care-rate confidence intervals contain the observed proportion", () => {
   const [lower, upper] = wilsonInterval(80, 100);
   assert.ok(lower < 0.8 && upper > 0.8);
   const rows = generateCohort({ size: 2000, seed: 31, scenario: "balanced" });
-  assert.ok(careRates(rows, "age_sex").filter((row) => !row.suppressed).every((row) => row.confidenceInterval[0] <= row.rate && row.rate <= row.confidenceInterval[1]));
+  assert.ok(careRates(rows, "age_sex").filter((row) => !row.suppressed).every((row) => row.confidenceInterval[0] - 1e-12 <= row.rate && row.rate <= row.confidenceInterval[1] + 1e-12));
 });
 
 test("balanced cohorts include realistic baseline documentation missingness", () => {
@@ -140,7 +145,17 @@ test("risk histogram and calibration bins preserve valid cohort totals", () => {
   const calibration = calibrationBins(rows, 10);
   assert.equal(histogram.reduce((sum, bin) => sum + bin.count, 0), rows.length);
   assert.ok(Math.abs(histogram.reduce((sum, bin) => sum + bin.share, 0) - 1) < 1e-12);
-  assert.equal(calibration.reduce((sum, bin) => sum + bin.n, 0), rows.length);
+  const observedRows = rows.filter((row) => [0, 1].includes(row.outcome_2y)).length;
+  assert.equal(calibration.reduce((sum, bin) => sum + bin.n, 0), observedRows);
   assert.ok(calibration.filter((bin) => bin.n).every((bin) => bin.meanPredicted >= 0 && bin.meanPredicted <= 1));
   assert.ok(calibration.filter((bin) => bin.n).every((bin) => bin.observedRate >= 0 && bin.observedRate <= 1));
+});
+
+test("loss to follow-up censors outcomes without becoming a negative outcome", () => {
+  const rows = generateCohort({ size: 10000, seed: 414, scenario: "balanced" });
+  const lost = rows.filter((row) => row.lost_to_followup === 1);
+  assert.ok(lost.length > 0);
+  assert.ok(lost.every((row) => row.outcome_2y == null));
+  assert.ok(lost.every((row) => row.censoring_reason === "Loss to follow-up"));
+  assert.ok(lost.every((row) => row.time_to_event_months < 24));
 });

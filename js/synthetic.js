@@ -73,6 +73,25 @@ function doseBand(random, probability) {
   return "High";
 }
 
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const result = new Date(`${isoDate(date)}T00:00:00Z`);
+  result.setUTCDate(result.getUTCDate() + Math.round(days));
+  return result;
+}
+
+function addMonths(date, months) {
+  if (Number.isInteger(months)) {
+    const result = new Date(`${isoDate(date)}T00:00:00Z`);
+    result.setUTCMonth(result.getUTCMonth() + months);
+    return result;
+  }
+  return addDays(date, months * 30.4375);
+}
+
 function scenarioEffects(name, row) {
   const marginalized = ["Black, non-Hispanic", "Hispanic"].includes(row.race_ethnicity);
   const aya = row.age_at_diagnosis >= 15;
@@ -175,6 +194,12 @@ export function generateCohort({ size = 10000, seed = 2026, scenario = "access_g
       risk_group: riskGroup,
       site: `Synthetic Site ${String.fromCharCode(65 + Math.floor(random() * 5))}`
     };
+    const diagnosisDate = new Date(Date.UTC(2015 + Math.floor(random() * 8), Math.floor(random() * 12), 1 + Math.floor(random() * 28)));
+    const indexDate = addDays(diagnosisDate, 180);
+    row.diagnosis_date = isoDate(diagnosisDate);
+    row.index_date = isoDate(indexDate);
+    row.index_definition = "Day 180 after diagnosis";
+    row.prediction_horizon_months = 24;
     row.diagnosis_classification_system = "Synthetic general oncology grouping";
     row.disease_stage = sampleWeighted(random, [["Localized", 0.54], ["Regional", 0.27], ["Metastatic", 0.19]]);
     row.tumor_histology = "Not otherwise specified";
@@ -268,27 +293,40 @@ export function generateCohort({ size = 10000, seed = 2026, scenario = "access_g
     const adverseProbability = 0.12 + 0.18 * highRisk + 0.07 * intermediateRisk + 0.06 * (1 - row.treatment_adherent);
     row.adverse_event = bernoulli(random, adverseProbability);
 
+    // The score uses only information available by the day-180 landmark.
+    // Later follow-up completion and censoring do not enter the prediction.
     const outcomeLogit = -3.0
       + 1.15 * highRisk
       + 0.52 * intermediateRisk
       + 0.32 * aya
       + 0.65 * (1 - row.treatment_received)
       + 0.52 * (1 - row.treatment_adherent)
-      + 0.40 * (1 - row.followup_complete)
       + 0.36 * row.adverse_event
+      + 0.22 * row.cost_barrier
+      - 0.20 * row.transition_readiness
       + effects.outcome;
     const trueRisk = logistic(outcomeLogit);
-    row.outcome_2y = bernoulli(random, trueRisk);
+    row.latent_outcome_2y = bernoulli(random, trueRisk);
     row.predicted_risk_2y = clamp(logistic(
       outcomeLogit
-      - 0.42 * (1 - row.followup_complete)
       + effects.modelShift
       + normal(random) * 0.42
     ), 0.005, 0.995);
-    row.event_observed = row.outcome_2y;
-    row.time_to_event_months = row.event_observed
-      ? Math.max(0.5, Math.round((2 + random() * 21) * 10) / 10)
-      : Math.max(4, Math.round((16 + random() * 8) * 10) / 10);
+    const eventMonth = row.latent_outcome_2y
+      ? Math.max(0.5, Math.round((0.5 + random() * 23.5) * 10) / 10)
+      : null;
+    const lossProbability = clamp(0.04 + 0.12 * (1 - row.followup_complete) + 0.08 * row.cost_barrier + 0.04 * aya);
+    const lossMonth = random() < lossProbability
+      ? Math.max(1, Math.round((1 + random() * 22) * 10) / 10)
+      : 24;
+    const eventObserved = eventMonth != null && eventMonth <= lossMonth;
+    row.event_observed = eventObserved ? 1 : 0;
+    row.lost_to_followup = !eventObserved && lossMonth < 24 ? 1 : 0;
+    row.time_to_event_months = eventObserved ? eventMonth : lossMonth;
+    row.outcome_2y = eventObserved ? 1 : row.lost_to_followup ? null : 0;
+    row.outcome_date = eventObserved ? isoDate(addMonths(indexDate, eventMonth)) : null;
+    row.last_contact_date = isoDate(addMonths(indexDate, row.time_to_event_months));
+    row.censoring_reason = eventObserved ? "Outcome observed" : row.lost_to_followup ? "Loss to follow-up" : "Administrative end of 24-month horizon";
 
     // Real clinical and registry datasets are rarely complete. These are
     // synthetic engineering assumptions, informed by the reviewed adherence,

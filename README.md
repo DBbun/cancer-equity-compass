@@ -39,8 +39,8 @@ relationships; it does not create independent random columns. Cancer grouping,
 age, risk, treatment exposure, care setting, access barriers, and scenario
 settings influence downstream eligibility, care, outcomes, and predictions.
 The current parameters are engineering assumptions rather than fitted CCDI
-estimates. The specification states the implicit analysis baseline, 24-month
-horizon, current loss-to-follow-up limitation, validation tests, and planned
+estimates. The specification states the day-180-after-diagnosis landmark, 24-month
+horizon, outcome dates, right-censoring and loss-to-follow-up rules, validation tests, and planned
 fidelity, privacy, confounding, and causal extensions.
 
 The live fairness chart visualizes statistical-parity difference,
@@ -57,6 +57,11 @@ published or clinically validated cancer score. A threshold converts that
 continuous probability into a binary model-positive classification. For
 example, at 20%, records with predicted risk at or above 0.20 are flagged.
 The 20% default is exploratory and is not a treatment recommendation.
+
+The model baseline is the fixed landmark exactly **180 days after diagnosis**.
+Only information available by that date enters the score, and outcome follow-up
+runs for the next 24 months. Outcome and last-contact dates distinguish observed
+events, observed event-free follow-up, and censoring due to loss to follow-up.
 
 A clinically usable threshold must be tied to a named model, eligible
 population, outcome, time horizon, intended intervention, and supporting
